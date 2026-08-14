@@ -802,7 +802,7 @@ function photosOf(code){ return PHOTOS[code]||[]; }
    ============================================================ */
 var CONFIG = {
   multiCompany:false,        // Α3
-  pricingModel:"uniform",    // ΣΤ3 — "uniform" | "perStone"
+  pricingModel:"perStone",   // ΣΤ3 — "uniform" | "perStone" · κλείδωσε 13/08 (ΗΤΑΝ "uniform" — λάθος)
   currency:"€",
   vat:24,
   /* Τιμές ενέργειας — παράμετροι, όχι σταθερές στον κώδικα */
@@ -2262,12 +2262,27 @@ var SEED = {
   ]
 };
 
-var DATA=null, STORE_KEY="marmara_nikou_state_v1", ROLE="admin", SEC=null, CUST=null, CTAB="Επισκόπηση";
+/* ΚΡΙΣΙΜΟ: όλες οι μεταβλητές πλοήγησης δηλώνονται ΕΔΩ. Πριν, οι μισές
+   γίνονταν implicit globals στην πρώτη ανάθεση — και η curRec() έσκαγε με
+   ReferenceError σε κάθε οθόνη που δεν είχε ανοιχτεί προηγουμένως καρτέλα. */
+var DATA=null, STORE_KEY="marmara_nikou_state_v1", ROLE="admin", SEC=null, CTAB="Επισκόπηση";
+var CUST=null, SUP=null, PROD=null, PL=null, QRY=null, STF=null,
+    ORD=null, WO=null, QT=null, SLB=null, USR=null, EDITING=false,
+    CALM=(function(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");})(),
+    TRKOPEN=null, QTAB2=null, WTAB=null;
 
 /* ---------- persistence (DEC-MN-02 generic backfill) ---------- */
 function clone(o){ return JSON.parse(JSON.stringify(o)); }
-function saveState(){ try{ localStorage.setItem(STORE_KEY,JSON.stringify(DATA)); }catch(e){} }
+function saveState(){
+  try{ localStorage.setItem("marmara_nikou_cfg_v1", JSON.stringify({fuel:CONFIG.fuel,fin:CONFIG.fin,vat:CONFIG.vat})); }catch(e){} try{ localStorage.setItem(STORE_KEY,JSON.stringify(DATA)); }catch(e){} }
 function loadState(){
+  /* Οι παράμετροι κόστους αποθηκεύονται ξεχωριστά — merge ανά κλειδί ώστε
+     νέες παράμετροι σε επόμενη έκδοση να μη χάνονται. */
+  try{ var cs=localStorage.getItem("marmara_nikou_cfg_v1");
+    if(cs){ var c=JSON.parse(cs);
+      if(c.fuel) for(var k in c.fuel) CONFIG.fuel[k]=c.fuel[k];
+      if(c.fin)  for(var k2 in c.fin) CONFIG.fin[k2]=c.fin[k2];
+      if(c.vat!==undefined) CONFIG.vat=c.vat; } }catch(e){}
   var raw=null; try{ raw=localStorage.getItem(STORE_KEY); }catch(e){}
   if(!raw){ DATA=clone(SEED); return; }
   try{ DATA=JSON.parse(raw); }catch(e){ DATA=clone(SEED); return; }
@@ -2958,18 +2973,116 @@ function dueCell(d){
   return '<span class="mono">'+esc(d)+'</span> <span class="pill '+cls+'">'+txt+'</span>';
 }
 function viewParams(){
-  var h='<h1>Παράμετροι κόστους</h1><p class="sub">Αλλάζοντας μία τιμή εδώ, ενημερώνεται όλη η κοστολόγηση του στόλου.</p>';
-  h+='<div class="grid">';
-  ["diesel","petrol","lpg","agri","kwh"].forEach(function(f){
-    h+=kpi(FUEL_LABEL[f], eur2(CONFIG.fuel[f]), f==="kwh"?"ανά kWh":"ανά λίτρο");
-  });
-  h+='</div><div class="vein"></div><h2 class="sec">Παράμετροι DEC-MN-04 — κλειδώθηκαν 13/08/2026</h2>';
-  h+='<div class="tw"><table><thead><tr><th>Παράμετρος</th><th>Τρέχουσα τιμή</th><th>Εξαρτάται από</th></tr></thead><tbody>'
-   +'<tr><td><strong>Πολυεταιρικό</strong></td><td>'+(CONFIG.multiCompany?"Ναι":"Όχι")+' <span class="pill ok">κλειδώθηκε</span></td><td>Ερώτηση <span class="id">Α3</span> &rarr; «Μία μόνο»</td></tr>'
-   +'<tr><td><strong>Μοντέλο τιμολόγησης</strong></td><td>'+(CONFIG.pricingModel==="uniform"?"Ενιαίος τιμοκατάλογος":"Ανά πέτρα")+' <span class="pill ok">κλειδώθηκε</span></td><td>Ερώτηση <span class="id">ΣΤ3</span> &rarr; «κάθε μάρμαρο έχει δική του τιμή»</td></tr>'
-   +'<tr><td><strong>ΦΠΑ</strong></td><td>'+CONFIG.vat+'%</td><td>Σταθερό</td></tr>'
+  var F=CONFIG.fuel, fin=CONFIG.fin;
+  var h='<h1>Παράμετροι κόστους</h1>'
+   +'<p class="sub">Οι αριθμοί που τροφοδοτούν κάθε υπολογισμό. Αλλάζοντας μία τιμή εδώ, '
+   +'ενημερώνεται όλη η κοστολόγηση — στόλος, παραγωγή, προσφορές, νεκρό σημείο.</p>';
+
+  h+=editBar(CONFIG,"Παράμετροι κόστους");
+
+  /* ---------- καύσιμα & ενέργεια ---------- */
+  h+='<div class="vein"></div><h2 class="sec">Καύσιμα & ενέργεια</h2>';
+  if(EDITING){
+    h+='<div class="frow" style="max-width:900px">';
+    ["diesel","petrol","lpg","agri","kwh"].forEach(function(f){
+      h+='<div><label class="f">'+esc(FUEL_LABEL[f])+' <span style="color:var(--muted);font-weight:400">'
+       +(f==="kwh"?"€/kWh":"€/λίτρο")+'</span></label>'
+       +'<input class="f" type="number" step="0.001" data-ek="fuel.'+f+'" data-et="n" value="'+F[f]+'"></div>';
+    });
+    h+='</div>';
+  } else {
+    h+='<div class="kg">';
+    ["diesel","petrol","lpg","agri","kwh"].forEach(function(f){
+      var n=DATA.fuelLogs.filter(function(x){ var v=find(DATA.vehicles,"id",x.veh); return v&&v.fuel===f; }).length;
+      h+=kb(FUEL_LABEL[f], eur2(F[f]), (f==="kwh"?"ανά kWh":"ανά λίτρο")+(n?" · "+n+" δελτία":""));
+    });
+    h+='</div>';
+  }
+  /* επίδραση */
+  var mach=DATA.vehicles.filter(function(v){ return v.meter==="hr"; });
+  var avg=0; mach.forEach(function(v){ avg+=unitCost(v); }); avg=mach.length?avg/mach.length:0;
+  h+='<div class="card" style="margin-top:12px;font-size:13.5px;line-height:1.7">'
+   +'<strong>Τι επηρεάζει:</strong> το κόστος ανά ώρα των '+mach.length+' μηχανημάτων '
+   +'(μέσος όρος <strong>'+eur2(avg)+'/ώρα</strong>) → κόστος κέντρων εργασίας → κόστος ανά m² → περιθώριο προσφοράς.<br>'
+   +'<span style="color:var(--muted)">Αν το πετρέλαιο πάει '+eur2(F.diesel+0.20)+', το μέσο κόστος μηχανήματος γίνεται περίπου '
+   +eur2(avg*(F.diesel+0.20)/F.diesel)+'/ώρα.</span></div>';
+
+  /* ---------- πάγια & επιμερισμός ---------- */
+  h+='<div class="vein"></div><h2 class="sec">Πάγια & επιμερισμός</h2>';
+  if(EDITING){
+    h+='<div class="frow" style="max-width:900px">'
+     +'<div><label class="f">Ενέργεια εργοστασίου <span style="color:var(--muted);font-weight:400">€/μήνα</span></label>'
+     +'<input class="f" type="number" data-ek="fin.energyMonth" data-et="n" value="'+fin.energyMonth+'"></div>'
+     +'<div><label class="f">Διοικητικά & ασφάλειες <span style="color:var(--muted);font-weight:400">€/μήνα</span></label>'
+     +'<input class="f" type="number" data-ek="fin.adminMonth" data-et="n" value="'+fin.adminMonth+'"></div>'
+     +'<div><label class="f">Χρηματοοικονομικά <span style="color:var(--muted);font-weight:400">€/μήνα</span></label>'
+     +'<input class="f" type="number" data-ek="fin.financeMonth" data-et="n" value="'+fin.financeMonth+'"></div></div>'
+     +'<div class="frow" style="max-width:900px">'
+     +'<div><label class="f">Έτη απόσβεσης στόλου</label>'
+     +'<input class="f" type="number" data-ek="fin.deprYears" data-et="n" value="'+fin.deprYears+'"></div>'
+     +'<div><label class="f">Παραγωγή αναφοράς <span style="color:var(--muted);font-weight:400">m²/μήνα</span></label>'
+     +'<input class="f" type="number" data-ek="fin.monthlyM2" data-et="n" value="'+fin.monthlyM2+'"></div>'
+     +'<div><label class="f">Επιμερισμός παγίων</label><select class="f" data-ek="fin.overheadOn" data-et="b">'
+     +'<option value="1"'+(fin.overheadOn?" selected":"")+'>Ενεργός</option>'
+     +'<option value="0"'+(!fin.overheadOn?" selected":"")+'>Ανενεργός</option></select></div></div>'
+     +'<p class="sub" style="margin-top:-4px">⚠️ Η παραγωγή αναφοράς είναι ο <strong>παρονομαστής</strong> του επιμερισμού. '
+     +'Ο πελάτης δήλωσε 2.000–5.000 m²/μήνα (Γ1) — βάλαμε το μέσο. Μικρότερος αριθμός = μεγαλύτερο κόστος ανά m².</p>';
+  } else {
+    var F2=fixedTotal();
+    h+='<div class="tw"><table><thead><tr><th>Κατηγορία</th><th class="rt">Μηνιαίο</th><th>Πηγή</th></tr></thead><tbody>';
+    fixedCosts().forEach(function(x){
+      h+='<tr><td>'+esc(x.n)+'</td><td class="rt mono">'+eur(x.v)+'</td>'
+       +'<td style="color:var(--muted);font-size:13px">'+esc(x.src)+'</td></tr>'; });
+    h+='</tbody><tfoot><tr><td>Σύνολο</td><td class="rt mono">'+eur(F2)+'</td>'
+     +'<td class="mono">'+eur(F2*12)+' / έτος</td></tr></tfoot></table></div>';
+    h+='<div class="kg" style="margin-top:12px">';
+    h+=kb("Παραγωγή αναφοράς",num(fin.monthlyM2,0)+" m²","ανά μήνα · δήλωση Γ1: 2.000–5.000");
+    h+=kb("Γενικά έξοδα",eur2(overheadRate())+"/m²","πάγια ÷ παραγωγή","warn");
+    h+=kb("Επιμερισμός",fin.overheadOn?"Ενεργός":"Ανενεργός",fin.overheadOn?"στο καθαρό περιθώριο":"μόνο συνεισφορά",!fin.overheadOn);
+    h+=kb("Νεκρό σημείο",num(breakEven().m2,0)+" m²","τον μήνα");
+    h+='</div>';
+  }
+
+  /* ---------- εμπορικές παράμετροι ---------- */
+  h+='<div class="vein"></div><h2 class="sec">Εμπορικές παράμετροι</h2>';
+  if(EDITING){
+    h+='<div class="frow" style="max-width:900px">'
+     +'<div><label class="f">Στόχος περιθωρίου (%)</label>'
+     +'<input class="f" type="number" data-ek="fin.targetMargin" data-et="n" value="'+fin.targetMargin+'"></div>'
+     +'<div><label class="f">Ελάχιστο αποδεκτό (%)</label>'
+     +'<input class="f" type="number" data-ek="fin.minMargin" data-et="n" value="'+fin.minMargin+'"></div>'
+     +'<div><label class="f">Προκαταβολή εξ ορισμού (%)</label>'
+     +'<input class="f" type="number" data-ek="fin.depositPct" data-et="n" value="'+fin.depositPct+'"></div>'
+     +'<div><label class="f">ΦΠΑ (%)</label>'
+     +'<input class="f" type="number" data-ek="vat" data-et="n" value="'+CONFIG.vat+'"></div></div>';
+  } else {
+    var low=0; DATA.products.forEach(function(p){ p.variants.forEach(function(v){
+      var c=stdCost(p.code,v.th,null); if(c.full&&v.base&&(v.base-c.full)/v.base*100<fin.minMargin) low++; }); });
+    h+='<div class="tw"><table><tbody>';
+    h+=row("Στόχος περιθωρίου",fin.targetMargin+"%");
+    h+=row("Ελάχιστο αποδεκτό",fin.minMargin+'% <span style="color:var(--muted)">— κάτω από αυτό κοκκινίζει η γραμμή προσφοράς</span>'
+      +(low?' <span class="pill bad">'+low+' SKU κάτω από το όριο</span>':' <span class="pill ok">κανένα SKU κάτω</span>'));
+    h+=row("Προκαταβολή εξ ορισμού",fin.depositPct+"%");
+    h+=row("ΦΠΑ",CONFIG.vat+"%");
+    h+='</tbody></table></div>';
+  }
+
+  /* ---------- κλειδωμένες αποφάσεις ---------- */
+  h+='<div class="vein"></div><h2 class="sec">Κλειδωμένες αποφάσεις — DEC-MN-04</h2>';
+  h+='<div class="tw"><table><thead><tr><th>Παράμετρος</th><th>Τιμή</th><th>Πηγή</th></tr></thead><tbody>'
+   +'<tr><td><strong>Πολυεταιρικό</strong></td><td>'+(CONFIG.multiCompany?"Ναι":"Όχι")
+   +' <span class="pill ok">κλειδώθηκε</span></td><td>Ερώτηση <span class="id">Α3</span> → «Μία μόνο»</td></tr>'
+   +'<tr><td><strong>Μοντέλο τιμολόγησης</strong></td><td>'
+   +(CONFIG.pricingModel==="uniform"?"Ενιαίος τιμοκατάλογος":"Τιμή ανά πέτρα")
+   +' <span class="pill ok">κλειδώθηκε</span></td><td>Ερώτηση <span class="id">ΣΤ3</span> → «κάθε μάρμαρο έχει δική του τιμή»</td></tr>'
    +'</tbody></table></div>';
-  h+='<p class="sub" style="margin-top:14px">Και οι δύο επιβεβαιώθηκαν από τον πελάτη στις <strong>13/08/2026</strong>. Επειδή ήταν ρυθμίσεις και όχι παραδοχές στον κώδικα, η αλλαγή κόστισε δύο γραμμές — όχι rewrite (DEC-MN-04).</p>';
+  h+='<p class="sub" style="margin-top:12px">Επιβεβαιώθηκαν από τον πελάτη στις <strong>13/08/2026</strong>. '
+   +'Επειδή ήταν <strong>ρυθμίσεις</strong> και όχι παραδοχές στον κώδικα, η αλλαγή κόστισε δύο γραμμές — όχι rewrite (DEC-MN-04).</p>';
+
+  if(!EDITING) h+='<div class="vein"></div><div class="card" style="font-size:13.5px;color:var(--muted)">'
+   +'💡 Πατήστε <strong>✎ Επεξεργασία</strong> για να αλλάξετε οποιαδήποτε τιμή. '
+   +'Οι αλλαγές εφαρμόζονται <strong>αμέσως σε όλη την εφαρμογή</strong> — δοκιμάστε να ανεβάσετε το πετρέλαιο '
+   +'και δείτε το κόστος στη Στόλος → Κόστος ανά κέντρο.</div>';
   return h;
 }
 
@@ -3083,6 +3196,7 @@ function saveEdit(){
   render();
 }
 function curRec(){
+  if(SEC==="Παράμετροι κόστους") return CONFIG;
   if(CUST) return find(DATA.customers,"id",CUST);
   if(SUP)  return find(DATA.suppliers,"id",SUP);
   if(PROD) return find(DATA.products,"code",PROD);
