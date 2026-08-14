@@ -550,31 +550,39 @@ button.b.sm{padding:8px 11px;font-size:12px}
   .ct-b{font-family:"Roboto Condensed",sans-serif;font-weight:700;font-size:7.5pt;
     letter-spacing:.1em;text-transform:uppercase;border:1px solid #000;padding:1mm 2.5mm;white-space:nowrap}
   .ct-ce{background:#E1DDAE}
-  .ct-img{height:82mm;overflow:hidden;margin-bottom:5mm;background:#eee}
+  .ct-img{height:74mm;overflow:hidden;margin-bottom:4.5mm;background:#eee}
   .ct-img img{width:100%;height:100%;object-fit:cover;display:block}
   .ct-img2{height:52mm;overflow:hidden;margin-bottom:4mm;background:#eee}
   .ct-img2 img{width:100%;height:100%;object-fit:cover;display:block}
   /* ΚΡΙΣΙΜΟ: χωρίς table-layout:fixed οι πίνακες δεν συρρικνώνονται κάτω
      από το πλάτος του περιεχομένου τους και ξεχειλίζουν έξω από τη σελίδα
      — η στήλη «Τιμή» έβγαινε εκτός χαρτιού και δεν τυπωνόταν καθόλου. */
-  .ct-cols{display:flex;gap:7mm;flex:1;min-height:0}
+  /* overflow:hidden — αλλιώς σε γεμάτο προϊόν (Titanium: 8 τεχνικά +
+     4 φινιρίσματα + 5 τιμές) το περιεχόμενο ξεπερνά τα 263mm και το
+     υποσέλιδο τυπώνεται ΠΑΝΩ στην τελευταία γραμμή τιμών. */
+  .ct-cols{display:flex;gap:7mm;flex:1 1 auto;min-height:0;overflow:hidden}
   .ct-l{flex:0 0 84mm;min-width:0}
   .ct-r{flex:1 1 auto;min-width:0}
-  .ct-st{font-family:"Roboto Condensed",sans-serif;font-weight:700;font-size:8pt;
-    letter-spacing:.14em;text-transform:uppercase;color:#555;
-    border-bottom:1px solid #000;padding-bottom:1mm;margin:5mm 0 2mm}
+  .ct-st{font-family:"Roboto Condensed",sans-serif;font-weight:700;font-size:7.6pt;
+    letter-spacing:.12em;text-transform:uppercase;color:#555;
+    border-bottom:1px solid #000;padding-bottom:1mm;margin:4mm 0 1.5mm}
   .ct-t{width:100%;table-layout:fixed;border-collapse:collapse;font-size:8pt;word-wrap:break-word}
-  .ct-t th{width:44%;text-align:left;font-weight:400;color:#666;padding:1.5mm 3.5mm 1.5mm 0;
-    border-bottom:.4px solid #ddd;vertical-align:top;overflow-wrap:anywhere;line-height:1.35}
+  /* ΚΡΙΣΙΜΟ: το screen CSS δίνει στα th letter-spacing .14em + uppercase.
+     Στα 84mm της αριστερής στήλης, το «ΠΕΤΡΟΓΡΑΦΙΚΗ ΟΝΟΜΑΣΙΑ» ξεχείλιζε
+     και τυπωνόταν ΠΑΝΩ στην τιμή («ΟΝΟΜΑΣΙΧΑαλαζιακός»). Ρητό reset. */
+  .ct-t th{width:42%;text-align:left;font-weight:400;color:#666;padding:1.5mm 3mm 1.5mm 0;
+    border-bottom:.4px solid #ddd;vertical-align:top;line-height:1.3;
+    font-size:6.8pt!important;letter-spacing:.03em!important;text-transform:uppercase;
+    overflow-wrap:break-word;word-break:normal;hyphens:auto}
   /* Το πρότυπο σε δεύτερη γραμμή — αλλιώς η ετικέτα ξεχειλίζει και
      κολλάει πάνω στην τιμή («EN 137550,28 %») */
   .ct-lbl{display:block;font-size:6.5pt;letter-spacing:.06em;color:#999;margin-top:.4mm}
   .ct-t td{padding:1.5mm 0;border-bottom:.4px solid #ddd;font-weight:600;vertical-align:top}
-  .ct-t2{width:100%;table-layout:fixed;border-collapse:collapse;font-size:8pt;word-wrap:break-word}
+  .ct-t2{width:100%;table-layout:fixed;border-collapse:collapse;font-size:7.8pt;word-wrap:break-word}
   .ct-t2 th{text-align:left;font-family:"Roboto Condensed",sans-serif;font-weight:700;
     font-size:6.5pt;letter-spacing:.08em;text-transform:uppercase;color:#666;
     padding:1.4mm 1.5mm 1.4mm 0;border-bottom:1px solid #000;vertical-align:bottom}
-  .ct-t2 td{padding:1.5mm 1.5mm 1.5mm 0;border-bottom:.4px solid #ddd;vertical-align:top}
+  .ct-t2 td{padding:1.2mm 1.5mm 1.2mm 0;border-bottom:.4px solid #ddd;vertical-align:top}
   .ct-t2 .r{text-align:right}
   /* Ρητά πλάτη στηλών — αλλιώς η τιμή σπρώχνεται εκτός σελίδας */
   .ct-tf col.f1{width:40%}.ct-tf col.f2{width:22%}.ct-tf col.f3{width:16%}.ct-tf col.f4{width:22%}
@@ -586,7 +594,7 @@ button.b.sm{padding:8px 11px;font-size:12px}
     border-left:2.5px solid #E1DDAE}
   .ct-note{font-size:8pt;color:#555;margin-top:4mm;padding-top:2.5mm;border-top:.4px solid #ddd}
   .ct-pf{display:flex;justify-content:space-between;font-size:7.5pt;color:#777;
-    border-top:1px solid #000;padding-top:2mm;margin-top:auto}
+    border-top:1px solid #000;padding-top:2mm;margin-top:3mm;flex:0 0 auto}
   .ct-terms{flex:1;columns:2;column-gap:9mm;font-size:8.5pt}
   .ct-terms h4{font-family:"Roboto Condensed",sans-serif;font-weight:700;font-size:9pt;
     text-transform:uppercase;letter-spacing:.08em;margin:0 0 1.5mm;break-after:avoid}
@@ -6048,7 +6056,7 @@ function catProduct(x,l,idx){
       : "Χωρίς σήμανση CE")+'</td></tr>';
   if(prnOn(x,"gwp")&&x.compliance.gwp) idr+='<tr><th>GWP</th><td>'+num(x.compliance.gwp,1)+' kg CO₂e/m²</td></tr>';
   if(prnOn(x,"web")&&x.web.slug) idr+='<tr><th>Αναλυτικά</th><td>nikoumarbles.gr/proionta/'+esc(x.web.slug)+'</td></tr>';
-  if(idr) h+='<table class="ct-t"><colgroup><col style="width:38%"><col style="width:62%"></colgroup>'+idr+'</table>';
+  if(idr) h+='<table class="ct-t"><colgroup><col style="width:42%"><col style="width:58%"></colgroup>'+idr+'</table>';
   if(prnOn(x,"en12440")) h+='<div class="ct-en">'+esc(en12440(x))+'</div>';
 
   if(prnOn(x,"tech")){
@@ -6066,9 +6074,19 @@ function catProduct(x,l,idx){
     tr("Αντοχή σε τριβή","EN 14157",tk.abrasion,"mm");
     trx("Αντοχή σε παγετό","EN 12371",tk.frost);
     trx("Αντίδραση στη φωτιά","EN 13501-1",tk.fire);
-    if(rows) h+='<div class="ct-st">Τεχνικά χαρακτηριστικά</div><table class="ct-t">'
+    /* Το «Αντίδραση στη φωτιά A1» ισχύει για κάθε φυσικό λίθο — μόνο του
+       δεν συνιστά τεχνικό δελτίο. Χωρίς αυτόν τον έλεγχο, τα 7 προϊόντα
+       χωρίς εργαστηριακά τύπωναν πίνακα με ΜΙΑ γραμμή και έμοιαζαν ελλιπή. */
+    var meaty=(rows.match(/<tr>/g)||[]).length;
+    if(meaty>=3) h+='<div class="ct-st">Τεχνικά χαρακτηριστικά</div><table class="ct-t">'
       +'<colgroup><col style="width:58%"><col style="width:42%"></colgroup>'+rows+'</table>';
-    else h+='<div class="ct-pend">Τεχνικά χαρακτηριστικά: διαθέσιμα κατόπιν αιτήματος</div>';
+    else {
+      h+='<div class="ct-st">Τεχνικά χαρακτηριστικά</div>';
+      if(meaty) h+='<table class="ct-t"><colgroup><col style="width:58%"><col style="width:42%"></colgroup>'+rows+'</table>';
+      h+='<div class="ct-pend"><strong>Πλήρες τεχνικό δελτίο κατόπιν αιτήματος.</strong><br>'
+       +'Πυκνότητα, υδαταπορροφητικότητα, αντοχή σε θλίψη και κάμψη κατά EN — '
+       +'διατίθενται με εργαστηριακή έκθεση για το συγκεκριμένο υλικό.</div>';
+    }
   }
   h+='</div><div class="ct-r">';
 
