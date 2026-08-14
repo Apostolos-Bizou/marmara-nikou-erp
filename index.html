@@ -11116,6 +11116,40 @@ document.addEventListener("keydown",function(e){
 document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeMod(); });
 
 
+/* ---------- Δρομολογητής URL (deep links για το φύλλο ελέγχου) ----------
+   Μορφή: #/<ρόλος>/<ενότητα>[/<αναγνωριστικό>[/<καρτέλα>]]
+   π.χ.  #/admin/Προϊόντα/MN-TIG/Τεχνικά
+         #/crm/Παραγγελίες/ΠΑΡ-2026-0088/Παρακολούθηση
+   Οι σύνδεσμοι στέλνονται στον πελάτη ώστε να μην ψάχνει την οθόνη. */
+function applyHash(){
+  var h=(location.hash||"").replace(/^#\/?/,"");
+  if(!h) return false;
+  var p=h.split("/").map(decodeURIComponent);
+  var role=p[0], sec=p[1], id=p[2], tab=p[3];
+  if(!role||!sec) return false;
+  var r=ROLES.filter(function(x){ return x.id===role; })[0];
+  if(!r) return false;
+  var found=false;
+  r.groups.forEach(function(g){ g.items.forEach(function(i){ if(i===sec) found=true; }); });
+  if(!found) return false;
+  try{
+    if(id){
+      if(sec==="Προϊόντα")            { goProd(id,tab); return true; }
+      if(sec==="Τιμοκατάλογοι")       { goPL(id);       return true; }
+      if(sec==="Πελάτες")             { goCust(id,tab); return true; }
+      if(sec==="Προμηθευτές")         { goSup(id,tab);  return true; }
+      if(sec==="Προσφορές")           { goQt(id);       return true; }
+      if(sec==="Παραγγελίες")         { goOrd(id,tab);  return true; }
+      if(sec==="Τα λατομεία")         { goQry(id,tab);  return true; }
+      if(sec==="Προσωπικό")           { goStf(id);      return true; }
+      if(sec==="Μητρώο πλακών")       { goSlb(id);      return true; }
+      if(sec==="Εντολές παραγωγής")   { goWO(id);       return true; }
+    }
+    goSec(role,sec); return true;
+  }catch(e){ return false; }
+}
+window.addEventListener("hashchange",function(){ if(LOGGED) applyHash(); });
+
 /* ---------- είσοδος (διακοσμητική — DEC-MN-08) ---------- */
 var LOGGED=false;
 var DEMO_USER="admin", DEMO_PASS="marmara2026";
@@ -11127,7 +11161,7 @@ function doLogin(){
     LOGGED=true;
     try{ sessionStorage.setItem("mn_logged","1"); }catch(x){}
     document.getElementById("login").classList.add("off");
-    ROLE="admin"; SEC="Πίνακας ελέγχου"; render();
+    if(!applyHash()){ ROLE="admin"; SEC="Πίνακας ελέγχου"; render(); }
   } else {
     e.textContent = u||w ? "Λάθος όνομα χρήστη ή κωδικός." : "Συμπληρώστε τα στοιχεία εισόδου.";
     document.getElementById("lgP").value="";
@@ -11151,7 +11185,8 @@ if(!LOGGED) setTimeout(function(){ var u=document.getElementById("lgU"); if(u) u
 var savedTheme="light"; try{ savedTheme=localStorage.getItem("mn_theme")||"light"; }catch(e){}
 setTheme(savedTheme);
 loadState();
-render();
+/* Αν ήρθε από deep link και η συνεδρία είναι ενεργή, πήγαινε κατευθείαν εκεί. */
+if(!(LOGGED && applyHash())) render();
 </script>
 </body>
 </html>
