@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="el"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ΜΑΡΜΑΡΑ ΝΙΚΟΥ — Φύλλο ελέγχου</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--sand:#E1DDAE;--sand2:#F2F0E4;--ink:#0F0F0D;--bg:#FAF9F5;--surf:#fff;
+ --line:#E3E0D4;--line2:#EFEDE4;--muted:#6B6B63;--faint:#A5A399;
+ --ok:#2E9E6B;--warn:#C8912A;--bad:#C4443A;--r:10px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font:400 16px/1.55 Inter,system-ui,sans-serif;padding-bottom:90px}
+.wrap{max-width:820px;margin:0 auto;padding:0 16px}
+
+/* ---- κεφαλίδα ---- */
+header{background:var(--ink);color:var(--sand);padding:20px 0 18px;margin-bottom:20px}
+.hd{display:flex;align-items:center;gap:14px}
+.mk{flex:0 0 42px;height:56px;background:var(--sand);position:relative;border-radius:2px}
+.mk svg{position:absolute;inset:0;width:100%;height:100%}
+.ht{font-family:"Roboto Condensed",sans-serif;font-weight:900;font-size:21px;
+ line-height:.95;text-transform:uppercase;letter-spacing:.01em}
+.hs{font-family:"Roboto Condensed",sans-serif;font-weight:700;font-size:11px;
+ letter-spacing:.24em;text-transform:uppercase;opacity:.72;margin-top:5px}
+.hlink{display:inline-block;margin-top:11px;background:var(--sand);color:var(--ink);
+ padding:9px 15px;border-radius:7px;text-decoration:none;font-weight:700;font-size:14.5px}
+
+/* ---- πρόοδος ---- */
+.prog{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);
+ padding:15px 17px;margin-bottom:18px;position:sticky;top:8px;z-index:20;
+ box-shadow:0 3px 14px rgba(0,0,0,.05)}
+.pbar{height:9px;background:var(--line2);border-radius:5px;overflow:hidden;margin:9px 0 8px}
+.pfill{height:100%;background:var(--ok);transition:width .3s}
+.pnums{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.pnums b{color:var(--ink)}
+.ptitle{font-family:"Roboto Condensed",sans-serif;font-weight:900;font-size:15px;
+ text-transform:uppercase;letter-spacing:.06em}
+
+/* ---- εισαγωγή ---- */
+.intro{background:var(--sand2);border:1px solid var(--sand);border-radius:var(--r);
+ padding:17px 19px;margin-bottom:20px;font-size:15px;line-height:1.65}
+.intro h2{font-family:"Roboto Condensed",sans-serif;font-weight:900;font-size:17px;
+ margin:0 0 9px;text-transform:uppercase}
+.intro ul{margin:9px 0 0;padding-left:20px}
+.intro li{margin-bottom:6px}
+.who{margin-top:14px;padding-top:13px;border-top:1px solid var(--sand)}
+.who input{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:7px;
+ font:inherit;font-size:15px;background:var(--surf);margin-top:6px}
+
+/* ---- ενότητα ---- */
+.sec{background:var(--surf);border:1px solid var(--line);border-radius:var(--r);
+ margin-bottom:14px;overflow:hidden}
+.sech{display:flex;align-items:center;gap:13px;padding:16px 18px;cursor:pointer;user-select:none}
+.sech:hover{background:var(--sand2)}
+.secic{font-size:23px;flex:0 0 auto}
+.secn{flex:1;min-width:0}
+.secn b{font-family:"Roboto Condensed",sans-serif;font-weight:900;font-size:17px;
+ display:block;text-transform:uppercase;letter-spacing:.01em}
+.secn span{font-size:13.5px;color:var(--muted);display:block;margin-top:3px;line-height:1.45}
+.secb{flex:0 0 auto;font-family:"Roboto Condensed",sans-serif;font-weight:700;font-size:12.5px;
+ padding:4px 10px;border-radius:20px;background:var(--line2);color:var(--muted);white-space:nowrap}
+.secb.done{background:var(--ok);color:#fff}
+.secb.part{background:var(--warn);color:#fff}
+.chev{flex:0 0 auto;color:var(--faint);font-size:19px;transition:transform .2s}
+.sec.open .chev{transform:rotate(90deg)}
+.secbody{display:none;padding:0 18px 6px;border-top:1px solid var(--line2)}
+.sec.open .secbody{display:block}
+
+/* ---- βήμα ---- */
+.step{padding:18px 0;border-bottom:1px solid var(--line2)}
+.step:last-child{border-bottom:none}
+.stn{font-weight:700;font-size:16.5px;display:flex;gap:10px;align-items:flex-start}
+.stnum{flex:0 0 auto;width:25px;height:25px;border-radius:50%;background:var(--ink);color:var(--sand);
+ display:flex;align-items:center;justify-content:center;font-size:13px;
+ font-family:"Roboto Condensed",sans-serif;font-weight:700;margin-top:1px}
+.step.answered .stnum{background:var(--ok);color:#fff}
+.lbl{font-family:"Roboto Condensed",sans-serif;font-weight:700;font-size:10.5px;
+ letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin:13px 0 4px}
+.txt{font-size:15px;line-height:1.6}
+.txt.look{background:var(--sand2);border-radius:7px;padding:11px 13px}
+
+/* ---- κρίση ---- */
+.verd{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:6px}
+.vb{border:2px solid var(--line);background:var(--surf);border-radius:9px;padding:13px 10px;
+ cursor:pointer;font:inherit;font-size:14.5px;font-weight:600;text-align:center;
+ display:flex;flex-direction:column;gap:3px;align-items:center;color:var(--ink)}
+.vb small{font-weight:400;font-size:12px;color:var(--muted);line-height:1.3}
+.vb:hover{border-color:var(--faint)}
+.vb.on.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.vb.on.ch{background:var(--warn);border-color:var(--warn);color:#fff}
+.vb.on.no{background:var(--bad);border-color:var(--bad);color:#fff}
+.vb.on.sk{background:var(--muted);border-color:var(--muted);color:#fff}
+.vb.on small{color:rgba(255,255,255,.85)}
+
+textarea{width:100%;min-height:82px;padding:12px 13px;border:1px solid var(--line);
+ border-radius:8px;font:inherit;font-size:15px;background:var(--surf);resize:vertical}
+textarea.need{border-color:var(--warn);background:#FFFDF6}
+
+/* ---- εικόνες ---- */
+.shot{border:2px dashed var(--line);border-radius:9px;padding:15px;text-align:center;
+ background:var(--sand2);cursor:pointer;font-size:14px;color:var(--muted);line-height:1.5}
+.shot:hover{border-color:var(--warn);background:#FFFDF6}
+.shot b{color:var(--ink);display:block;font-size:15px;margin-bottom:3px}
+.shots{display:flex;gap:9px;flex-wrap:wrap;margin-top:10px}
+.sh{position:relative;width:104px;height:78px;border:1px solid var(--line);
+ border-radius:6px;overflow:hidden;background:#000}
+.sh img{width:100%;height:100%;object-fit:cover;display:block;cursor:pointer}
+.sh button{position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;
+ border:none;background:rgba(0,0,0,.72);color:#fff;cursor:pointer;font-size:14px;line-height:1;padding:0}
+
+/* ---- κάτω μπάρα ---- */
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--surf);
+ border-top:1px solid var(--line);padding:11px 16px;z-index:40;
+ box-shadow:0 -3px 14px rgba(0,0,0,.07);padding-bottom:calc(11px + env(safe-area-inset-bottom))}
+.barin{max-width:820px;margin:0 auto;display:flex;gap:9px;align-items:center}
+.barin .st{flex:1;min-width:0;font-size:13px;color:var(--muted);line-height:1.35}
+.b{border:none;background:var(--ink);color:var(--sand);border-radius:8px;
+ padding:13px 17px;font:inherit;font-weight:700;font-size:15px;cursor:pointer;white-space:nowrap}
+.b.g{background:var(--surf);color:var(--ink);border:1px solid var(--line)}
+.b:disabled{opacity:.45;cursor:not-allowed}
+
+/* ---- modal ---- */
+.ov{position:fixed;inset:0;background:rgba(15,15,13,.82);z-index:60;
+ display:none;align-items:center;justify-content:center;padding:18px;overflow-y:auto}
+.ov.on{display:flex}
+.md{background:var(--bg);border-radius:13px;max-width:660px;width:100%;padding:24px;margin:auto}
+.md h3{font-family:"Roboto Condensed",sans-serif;font-weight:900;font-size:20px;
+ margin:0 0 13px;text-transform:uppercase}
+.ov img.big{max-width:96vw;max-height:88vh;border-radius:8px;object-fit:contain}
+.miss{background:var(--sand2);border-radius:8px;padding:12px 14px;margin:12px 0;
+ max-height:230px;overflow-y:auto;font-size:14px;line-height:1.7}
+.miss a{color:var(--bad);text-decoration:none;font-weight:600;display:block;padding:2px 0}
+.pill{display:inline-block;font-family:"Roboto Condensed",sans-serif;font-weight:700;
+ font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;
+ border-radius:20px;background:var(--line2);color:var(--muted)}
+.toast{position:fixed;bottom:86px;left:50%;transform:translateX(-50%);background:var(--ink);
+ color:var(--sand);padding:12px 20px;border-radius:9px;font-size:14.5px;z-index:70;
+ opacity:0;transition:opacity .25s;pointer-events:none;max-width:90vw;text-align:center}
+.toast.on{opacity:1}
+@media(max-width:520px){.verd{grid-template-columns:1fr}.ht{font-size:18px}}
+</style></head><body>
+
+<header><div class="wrap"><div class="hd">
+ <div class="mk"><svg viewBox="0 0 42 100" preserveAspectRatio="none">
+  <path d="M21 0 L24 22 L17 28 L25 36 L42 34 L42 47 L24 45 L19 55 L22 75 L15 100"
+   fill="none" stroke="#0F0F0D" stroke-width="7"/>
+  <path d="M0 32 L15 30 L21 37 L12 43 L0 41 Z" fill="#0F0F0D"/></svg></div>
+ <div><div class="ht">Μάρμαρα Νίκου</div>
+  <div class="hs">Φύλλο ελέγχου ERP</div>
+  <a class="hlink" href="https://apostolos-bizou.github.io/marmara-nikou-erp/" target="_blank">Άνοιγμα εφαρμογής ↗</a>
+ </div></div></div></header>
+
+<div class="wrap">
+ <div class="prog">
+  <div class="ptitle">Πρόοδος ελέγχου</div>
+  <div class="pbar"><div class="pfill" id="pf" style="width:0"></div></div>
+  <div class="pnums" id="pn"></div>
+ </div>
+
+ <div class="intro">
+  <h2>Πώς δουλεύει αυτό</h2>
+  Ανοίξτε την εφαρμογή σε <b>άλλη καρτέλα</b> και κρατήστε αυτή τη σελίδα δίπλα.
+  Για κάθε βήμα: κάντε αυτό που λέει, δείτε τι σας ζητάμε, και απαντήστε.
+  <ul>
+   <li><b>Δεν χάνεται τίποτα.</b> Ό,τι γράφετε αποθηκεύεται αυτόματα στη συσκευή σας.
+       Μπορείτε να κλείσετε και να συνεχίσετε αργότερα.</li>
+   <li><b>Φωτογραφία οθόνης:</b> πατήστε <code>Win + Shift + S</code>, επιλέξτε την περιοχή,
+       και μετά κάντε επικόλληση με <code>Ctrl + V</code> στο πλαίσιο του βήματος.
+       Στο κινητό, βγάλτε screenshot και ανεβάστε το.</li>
+   <li><b>Πείτε μας και τα αρνητικά.</b> Το «δεν μου αρέσει» είναι πιο χρήσιμο από το «ωραίο».</li>
+   <li>Όταν τελειώσετε, πατήστε <b>Ολοκλήρωση</b> κάτω και στείλτε μας το αρχείο.</li>
+  </ul>
+  <div class="who">
+   <label class="lbl" style="margin-top:0">Το όνομά σας</label>
+   <input id="who" placeholder="π.χ. Λάμπρος Νίκου" oninput="save()">
+  </div>
+ </div>
+
+ <div id="secs"></div>
+</div>
+
+<div class="bar"><div class="barin">
+ <div class="st" id="bst">—</div>
+ <button class="b g" onclick="exportJSON()">Αποθήκευση</button>
+ <button class="b" onclick="finish()">Ολοκλήρωση</button>
+</div></div>
+
+<div class="ov" id="ov" onclick="if(event.target.id==='ov')closeOv()"><div id="ovc"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const PLAN = {"sections": [{"id": "s1", "ic": "🚪", "n": "Πρώτη εντύπωση", "d": "Πριν μπείτε σε λεπτομέρειες — τι σας λέει η πρώτη ματιά.", "steps": [{"t": "Άνοιγμα και ταχύτητα", "do": "Ανοίξτε τον σύνδεσμο στον υπολογιστή σας. Μετρήστε περίπου πόσο αργεί να φορτώσει την πρώτη φορά.", "look": "Λιγότερο από 10 δευτερόλεπτα σε καλό internet. Αν αργεί πολύ, πείτε το."}, {"t": "Οθόνη εισόδου", "do": "Δείτε την οθόνη με το λογότυπο. Μπείτε με admin / marmara2026.", "look": "Σας αρέσει το λογότυπο έτσι όπως εμφανίζεται; Είναι το σωστό;"}, {"t": "Πρώτη οθόνη μετά την είσοδο", "do": "Κοιτάξτε τον Πίνακα ελέγχου για ένα λεπτό, χωρίς να πατήσετε τίποτα.", "look": "Καταλαβαίνετε τι βλέπετε; Σας λέει κάτι χρήσιμο ή είναι θόρυβος;"}, {"t": "Ονομασία εταιρείας", "do": "Δείτε πάνω αριστερά και στην οθόνη εισόδου.", "look": "«ΜΑΡΜΑΡΑ ΝΙΚΟΥ» — είναι αυτή η επωνυμία που θέλετε να φαίνεται; Ή «NIKOU S.A.» ή κάτι άλλο;"}]}, {"id": "s2", "ic": "📊", "n": "Πίνακας ελέγχου", "d": "Αυτό βλέπετε κάθε πρωί. Θέλουμε να ξέρουμε αν είναι τα σωστά νούμερα.", "steps": [{"t": "Ειδοποιήσεις", "do": "Διαβάστε τις ειδοποιήσεις στην κορυφή, ειδικά τις κόκκινες.", "look": "Είναι πράγματα που όντως θέλετε να ξέρετε; Λείπει κάτι που θα θέλατε να σας φωνάζει;"}, {"t": "Λατομείο", "do": "Κατεβείτε στην ενότητα ⛏️ Λατομείο.", "look": "Η «απόδοση λατομείου» είναι νούμερο που παρακολουθείτε; Ξέρετε την πραγματική σας;"}, {"t": "Πωλήσεις & Πελάτες", "do": "Δείτε τις δύο τελευταίες ενότητες.", "look": "Ποιοι δείκτες σας ενδιαφέρουν πραγματικά και ποιοι όχι;"}, {"t": "Τι λείπει", "do": "Σκεφτείτε τι κοιτάτε σήμερα το πρωί όταν ανοίγετε το γραφείο.", "look": "Υπάρχει κάτι που κοιτάτε καθημερινά και δεν το βλέπετε εδώ;"}]}, {"id": "s3", "ic": "💠", "n": "Προϊόντα & τιμοκατάλογοι", "d": "Ο πυρήνας. Αν αυτά είναι λάθος, όλα τα υπόλοιπα είναι λάθος.", "steps": [{"t": "Τα 12 προϊόντα", "do": "ΔΙΑΧΕΙΡΙΣΗ → Προϊόντα. Δείτε τη λίστα.", "look": "Λείπει προϊόν που πουλάτε; Υπάρχει κάποιο που ΔΕΝ πουλάτε πια;"}, {"t": "Titanium Grey", "do": "Ανοίξτε το TITANIUM GREY και δείτε όλες τις ενότητες.", "look": "Τα τεχνικά χαρακτηριστικά είναι σωστά; Η φωτογραφία είναι η καλύτερη που έχετε;"}, {"t": "Φινιρίσματα & ολισθηρότητα", "do": "Στο ίδιο προϊόν, ενότητα «Φινιρίσματα».", "look": "Αυτά είναι τα φινιρίσματα που δίνετε; Λείπει κάποιο;"}, {"t": "Τιμές", "do": "Ενότητα «Παραλλαγές & τιμές».", "look": "⚠️ ΟΙ ΤΙΜΕΣ ΕΙΝΑΙ ΕΠΙΝΟΗΜΕΝΕΣ από εμάς. Πείτε μας πόσο μακριά είναι από τις πραγματικές — ή στείλτε μας τον δικό σας τιμοκατάλογο."}, {"t": "Τιμοκατάλογοι", "do": "ΔΙΑΧΕΙΡΙΣΗ → Τιμοκατάλογοι. Ανοίξτε τον «Παπαδόπουλος — ειδική συμφωνία».", "look": "Έτσι δουλεύετε; Δίνετε ειδικές τιμές ανά πελάτη; Πόσους τέτοιους έχετε;"}]}, {"id": "s4", "ic": "📝", "n": "Προσφορές", "d": "Εδώ είναι η μεγαλύτερη αξία. Είπατε ότι μια προσφορά σας παίρνει 1–2 ώρες.", "steps": [{"t": "Υπάρχουσα προσφορά", "do": "ΠΩΛΗΣΕΙΣ → Προσφορές → ανοίξτε την ΠΡ-2026-0139.", "look": "Δείτε τη στήλη «Περιθώριο». Αυτό θέλατε να βλέπετε;"}, {"t": "Οι έλεγχοι", "do": "Πηγαίνετε στην ενότητα «Έλεγχοι». Διαβάστε τα τρία κόκκινα.", "look": "Είναι πράγματα που σας έχουν συμβεί; Θα σας γλίτωναν πρόβλημα;"}, {"t": "Φτιάξτε δική σας", "do": "«+ Νέα προσφορά». Διαλέξτε πελάτη, βάλτε 3-4 γραμμές, δείτε το περιθώριο.", "look": "Πόση ώρα σας πήρε; Ήταν εύκολο ή μπερδευτήκατε κάπου;"}, {"t": "Εκτύπωση προσφοράς", "do": "Πατήστε «🖨 Εκτύπωση προσφοράς».", "look": "Θα τη δίνατε σε πελάτη έτσι; Τι λείπει; Τι περισσεύει;"}, {"t": "Μετατροπή σε παραγγελία", "do": "Πατήστε «✓ Μετατροπή σε παραγγελία».", "look": "Έτσι δουλεύει η δική σας ροή; Ή υπάρχει ενδιάμεσο βήμα;"}]}, {"id": "s5", "ic": "📋", "n": "Παραγγελίες & πελάτης", "d": "Πώς παρακολουθείτε μια παραγγελία και τι βλέπει ο πελάτης.", "steps": [{"t": "Τα 8 στάδια", "do": "ΠΩΛΗΣΕΙΣ → Παραγγελίες → ανοίξτε μία → «Παρακολούθηση».", "look": "Αυτά είναι τα στάδια που περνάει μια παραγγελία στο δικό σας εργοστάσιο; Λείπει κάποιο;"}, {"t": "Barcode", "do": "Δείτε την κάρτα με το barcode. Δοκιμάστε «🖨 Κάρτα».", "look": "Θα το κολλούσατε στο A-frame ή στο δελτίο αποστολής;"}, {"t": "Τι βλέπει ο πελάτης", "do": "ΠΩΛΗΣΕΙΣ → Πελάτες → ανοίξτε έναν → «Παρακολούθηση» → «👤 Προβολή πελάτη».", "look": "Θα δίνατε αυτό σε πελάτη; Δείχνει κάτι που ΔΕΝ θέλετε να βλέπει;"}, {"t": "Δημόσιος διαγωνισμός", "do": "Ανοίξτε την παραγγελία του Δήμου Ιωαννιτών → ενότητα «Έργο».", "look": "Τα πεδία ΑΔΑΜ/ΑΔΑ είναι σωστά; Λείπει κάτι που ζητούν οι δημόσιοι;"}]}, {"id": "s6", "ic": "⛏️", "n": "Λατομείο & οθόνη πεδίου", "d": "Το πιο κρίσιμο κομμάτι. Αν οι άνθρωποί σας δεν το χρησιμοποιήσουν, το σύστημα πεθαίνει.", "steps": [{"t": "Μητρώο όγκων", "do": "ΛΑΤΟΜΕΙΟ → Μητρώο όγκων.", "look": "Έτσι θα θέλατε να καταγράφονται οι όγκοι; Τι πληροφορία λείπει;"}, {"t": "Καρτέλα λατομείου", "do": "ΛΑΤΟΜΕΙΟ → Τα λατομεία → ανοίξτε το Δεμάτι → «Άδειες & συμμόρφωση».", "look": "Είναι σωστές οι άδειες που παρακολουθούμε; Λείπει κάποια που σας ταλαιπωρεί;"}, {"t": "📱 ΟΘΟΝΗ ΠΕΔΙΟΥ — από κινητό", "do": "ΑΝΟΙΞΤΕ ΤΟΝ ΣΥΝΔΕΣΜΟ ΣΤΟ ΚΙΝΗΤΟ ΣΑΣ. ΛΑΤΟΜΕΙΟ → Οθόνη πεδίου.", "look": "Θα μπορούσε ο Κατσάνος να το χρησιμοποιήσει με γάντια; Είναι αρκετά απλό;"}, {"t": "Νέος όγκος από κινητό", "do": "Στο κινητό, πατήστε «ΝΕΟΣ ΟΓΚΟΣ» και περάστε τα βήματα.", "look": "Πόσα δευτερόλεπτα πήρε; Θα το έκανε κάποιος 20 φορές την ημέρα;"}, {"t": "Ποιος θα το κάνει", "do": "Σκεφτείτε ρεαλιστικά.", "look": "Ποιος συγκεκριμένα θα καταχωρεί τους όγκους; Θα το δεχτεί;"}]}, {"id": "s7", "ic": "🏭", "n": "Παραγωγή & πλάκες", "d": "Από τον όγκο στην πλάκα — με ιχνηλασιμότητα.", "steps": [{"t": "Ουρά κοπής", "do": "ΠΑΡΑΓΩΓΗ → Ουρά κοπής. Δείτε τη σύγκριση τελάρο vs διαμαντόσυρμα.", "look": "Οι αριθμοί απόδοσης είναι κοντά στους δικούς σας; Πόσο βγάζετε στην πραγματικότητα;"}, {"t": "Διαδρομές παραγωγής", "do": "ΠΑΡΑΓΩΓΗ → Κέντρα & διαδρομές.", "look": "Είναι σωστά τα στάδια; Έτσι δουλεύει το εργοστάσιό σας; Τι λείπει;"}, {"t": "Μητρώο πλακών", "do": "ΠΑΡΑΓΩΓΗ → Μητρώο πλακών → ανοίξτε μία πλάκα.", "look": "Θα θέλατε να ξέρετε από ποιον όγκο βγήκε κάθε πλάκα; Αξίζει τον κόπο;"}, {"t": "Αποθήκη", "do": "ΠΑΡΑΓΩΓΗ → Αποθήκη & θέσεις.", "look": "Οι θέσεις που βάλαμε μοιάζουν με τις δικές σας; Πώς τις λέτε εσείς;"}]}, {"id": "s8", "ic": "💶", "n": "Λογιστήριο & κόστος", "d": "Είπατε «δεν ξέρω το κόστος μου». Εδώ είναι η απάντηση — πείτε μας αν είναι σωστή.", "steps": [{"t": "Πάγια κόστη", "do": "ΛΟΓΙΣΤΗΡΙΟ → Οικονομική επισκόπηση. Δείτε τον πίνακα παγίων.", "look": "⚠️ ΤΑ ΝΟΥΜΕΡΑ ΕΙΝΑΙ ΔΙΚΕΣ ΜΑΣ ΕΚΤΙΜΗΣΕΙΣ. Πόσο μακριά είναι από την πραγματικότητα;"}, {"t": "Νεκρό σημείο", "do": "ΛΟΓΙΣΤΗΡΙΟ → Κοστολόγηση & break-even.", "look": "Λέει 768 m²/μήνα. Βγάζει νόημα με βάση όσα ξέρετε;"}, {"t": "Κόστος ανά m²", "do": "Στον ίδιο πίνακα, δείτε τις στήλες Άμεσο · Γενικά · Πλήρες.", "look": "Αυτό είναι το νούμερο που ζητούσατε; Το καταλαβαίνετε;"}, {"t": "Πρόταση τιμής", "do": "ΛΟΓΙΣΤΗΡΙΟ → Πρόταση τιμής. Διαλέξτε προϊόν και αλλάξτε το περιθώριο.", "look": "Θα το χρησιμοποιούσατε πριν δώσετε τιμή σε πελάτη;"}, {"t": "Απαιτήσεις", "do": "ΛΟΓΙΣΤΗΡΙΟ → Απαιτήσεις.", "look": "Είπατε ότι πληρώνεστε μετρητοίς. Χρειάζεστε καθόλου αυτή την οθόνη;"}]}, {"id": "s9", "ic": "🖨", "n": "Εκτυπώσεις", "d": "Ό,τι δίνετε σε πελάτη. Τυπώστε τα και κρατήστε τα στο χέρι.", "steps": [{"t": "Κατάλογος προϊόντων", "do": "ΔΙΑΧΕΙΡΙΣΗ → Κέντρο εκτυπώσεων → Κατάλογος → 🖨. Ρυθμίσεις: Κεφαλίδες ΟΧΙ, Γραφικά φόντου ΝΑΙ.", "look": "Θα τον δίνατε σε πελάτη; Τι θα αλλάζατε;"}, {"t": "Τιμοκατάλογος", "do": "Ίδια οθόνη → Τιμοκατάλογος → 🖨.", "look": "Αυτό θα στέλνατε σε μαρμαρά; Είναι σωστή η σειρά και οι ομάδες;"}, {"t": "Εσωτερική έκδοση", "do": "Ίδια οθόνη → Έκδοση: «Εσωτερική με κόστη».", "look": "Χρήσιμο για εσάς; Θα το κρατούσατε;"}, {"t": "Λογότυπο στα έντυπα", "do": "Δείτε το εξώφυλλο του καταλόγου.", "look": "Έτσι θέλετε να φαίνεται το λογότυπο; Έχετε διανυσματικό αρχείο να μας δώσετε;"}]}, {"id": "s10", "ic": "🔑", "n": "Χρήστες & δικαιώματα", "d": "Ποιος βλέπει τι. Ειδικά ποιος βλέπει κόστη.", "steps": [{"t": "Οι 7 χρήστες", "do": "ΔΙΑΧΕΙΡΙΣΗ → Χρήστες.", "look": "Είναι σωστοί οι ρόλοι; Λείπει κάποιος; Περισσεύει κάποιος;"}, {"t": "Ποιος βλέπει κόστη", "do": "Δείτε τη στήλη «Κόστη» στον πίνακα.", "look": "Συμφωνείτε ότι ΜΟΝΟ εσείς και ο Θεόδωρος πρέπει να βλέπετε περιθώρια;"}, {"t": "Ο λογιστής", "do": "Ανοίξτε τον «logistis».", "look": "Ο λογιστής σας θα ήθελε πρόσβαση; Τι ακριβώς θα ήθελε να βλέπει;"}]}, {"id": "s11", "ic": "📖", "n": "Οδηγός", "d": "Το εγχειρίδιο μέσα στην εφαρμογή.", "steps": [{"t": "Γράφημα ροής", "do": "Πατήστε 📖 πάνω δεξιά. Δείτε το γράφημα.", "look": "Καταλαβαίνετε την αλυσίδα; Είναι σωστή για την επιχείρησή σας;"}, {"t": "Μία κάρτα", "do": "Πηγαίνετε σε μια ενότητα και διαβάστε μια κάρτα.", "look": "Είναι κατανοητό; Θα μπορούσε κάποιος να μάθει μόνος του;"}, {"t": "Τι ΔΕΝ κάνει ακόμα", "do": "📖 → Σενάρια δοκιμής → τελευταία κάρτα.", "look": "Διαβάστε την προσεκτικά. Σας ξαφνιάζει κάτι;"}]}, {"id": "s12", "ic": "🎯", "n": "Συνολική κρίση", "d": "Το πιο σημαντικό μέρος. Πείτε μας ειλικρινά.", "steps": [{"t": "Τι σας εντυπωσίασε", "do": "Σκεφτείτε όλα όσα είδατε.", "look": "Ποιο κομμάτι σας φάνηκε πιο χρήσιμο;"}, {"t": "Τι δεν χρειάζεστε", "do": "Υπάρχουν οθόνες που δεν θα ανοίγατε ποτέ;", "look": "Πείτε μας ποιες — θα τις αφαιρέσουμε και θα φθηνύνει."}, {"t": "Τι λείπει", "do": "Τι κάνετε σήμερα που δεν το είδατε πουθενά;", "look": "Το πιο σημαντικό ερώτημα. Μη διστάσετε."}, {"t": "Θα το χρησιμοποιούσατε", "do": "Ειλικρινά.", "look": "Θα το βάζατε στην επιχείρησή σας; Αν όχι, τι θα σας έκανε να το βάλετε;"}, {"t": "Επίσκεψη", "do": "Για να προχωρήσουμε χρειαζόμαστε μία ημέρα στο λατομείο και στο εργοστάσιο.", "look": "Πότε βολεύει; Γράψτε ημερομηνίες."}]}]};
+const KEY = "mn_uat_v1";
+let D = {who:"", ans:{}, started:new Date().toISOString()};
+try{ const s=localStorage.getItem(KEY); if(s) D=JSON.parse(s); }catch(e){}
+
+const VERD = [
+ {k:"ok", n:"Καλό", d:"Δουλεύει, μου αρέσει"},
+ {k:"ch", n:"Θέλει αλλαγή", d:"Δουλεύει αλλά κάτι θέλω αλλιώς"},
+ {k:"no", n:"Δεν δουλεύει", d:"Πρόβλημα ή λάθος"},
+ {k:"sk", n:"Δεν το δοκίμασα", d:"Το προσπέρασα"}
+];
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function key(si,ti){ return si+"_"+ti; }
+function A(k){ if(!D.ans[k]) D.ans[k]={v:"",c:"",sh:[]}; return D.ans[k]; }
+function save(){ D.who=document.getElementById("who").value;
+ try{ localStorage.setItem(KEY, JSON.stringify(D)); }catch(e){ toast("⚠️ Ο χώρος γέμισε — κατεβάστε το αρχείο"); } }
+function toast(m){ const t=document.getElementById("toast"); t.textContent=m; t.classList.add("on");
+ clearTimeout(t._x); t._x=setTimeout(()=>t.classList.remove("on"),2600); }
+
+function stats(){
+ let tot=0, ans=0, ok=0, ch=0, no=0, sk=0, sh=0;
+ PLAN.sections.forEach(s=>s.steps.forEach((_,i)=>{ tot++;
+  const a=D.ans[key(s.id,i)];
+  if(a&&a.v){ ans++; if(a.v==="ok")ok++; else if(a.v==="ch")ch++; else if(a.v==="no")no++; else sk++;
+   sh+=(a.sh||[]).length; } }));
+ return {tot,ans,ok,ch,no,sk,sh};
+}
+function secStat(s){ let a=0; s.steps.forEach((_,i)=>{ const x=D.ans[key(s.id,i)]; if(x&&x.v)a++; }); return a; }
+
+function render(){
+ const c=document.getElementById("secs"); let h="";
+ PLAN.sections.forEach(s=>{
+  const done=secStat(s), all=s.steps.length;
+  const cls = done===all ? "done" : done>0 ? "part" : "";
+  h+='<div class="sec" id="sec_'+s.id+'"><div class="sech" onclick="tog(\''+s.id+'\')">'
+   +'<span class="secic">'+s.ic+'</span><span class="secn"><b>'+esc(s.n)+'</b><span>'+esc(s.d)+'</span></span>'
+   +'<span class="secb '+cls+'">'+done+'/'+all+'</span><span class="chev">›</span></div>'
+   +'<div class="secbody">';
+  s.steps.forEach((st,i)=>{
+   const k=key(s.id,i), a=D.ans[k]||{v:"",c:"",sh:[]};
+   const needC = a.v && a.v!=="ok" && !a.c.trim();
+   h+='<div class="step'+(a.v?" answered":"")+'" id="st_'+k+'">'
+    +'<div class="stn"><span class="stnum">'+(i+1)+'</span><span>'+esc(st.t)+'</span></div>'
+    +'<div class="lbl">Τι να κάνετε</div><div class="txt">'+esc(st.do)+'</div>'
+    +'<div class="lbl">Τι μας ενδιαφέρει</div><div class="txt look">'+esc(st.look)+'</div>'
+    +'<div class="lbl">Η κρίση σας</div><div class="verd">';
+   VERD.forEach(v=>{ h+='<button class="vb '+v.k+(a.v===v.k?" on":"")+'" onclick="setV(\''+k+'\',\''+v.k+'\')">'
+    +v.n+'<small>'+v.d+'</small></button>'; });
+   h+='</div>'
+    +'<div class="lbl">Σχόλιο'+(a.v&&a.v!=="ok"?' — παρακαλούμε συμπληρώστε':' (προαιρετικό)')+'</div>'
+    +'<textarea class="'+(needC?"need":"")+'" placeholder="Τι ακριβώς; Τι θα θέλατε αλλιώς;" '
+    +'oninput="setC(\''+k+'\',this.value)">'+esc(a.c)+'</textarea>'
+    +'<div class="lbl">Φωτογραφία οθόνης</div>'
+    +'<div class="shot" tabindex="0" onpaste="paste(event,\''+k+'\')" onclick="pick(\''+k+'\')">'
+    +'<b>📷 Επικόλληση ή ανέβασμα</b>Κάντε κλικ εδώ και μετά Ctrl+V — ή πατήστε για επιλογή αρχείου</div>'
+    +'<div class="shots" id="sh_'+k+'">'+shots(k)+'</div></div>';
+  });
+  h+='</div></div>';
+ });
+ c.innerHTML=h;
+ PLAN.sections.forEach(s=>{ if(openSecs[s.id]) document.getElementById("sec_"+s.id).classList.add("open"); });
+ bar();
+}
+function shots(k){ const a=A(k); return (a.sh||[]).map((u,i)=>
+ '<div class="sh"><img src="'+u+'" onclick="big(\''+k+'\','+i+')">'
+ +'<button onclick="event.stopPropagation();delSh(\''+k+'\','+i+')">✕</button></div>').join(""); }
+
+let openSecs={};
+function tog(id){ openSecs[id]=!openSecs[id];
+ document.getElementById("sec_"+id).classList.toggle("open"); }
+
+function setV(k,v){ const a=A(k); a.v = a.v===v ? "" : v; save(); refreshStep(k); }
+function setC(k,v){ A(k).c=v; save(); bar(); }
+function refreshStep(k){
+ const el=document.getElementById("st_"+k), a=A(k);
+ el.classList.toggle("answered", !!a.v);
+ el.querySelectorAll(".vb").forEach(b=>{
+  const on=b.className.includes(a.v)&&a.v; b.classList.toggle("on", !!on); });
+ const ta=el.querySelector("textarea");
+ ta.classList.toggle("need", !!(a.v && a.v!=="ok" && !a.c.trim()));
+ el.querySelectorAll(".lbl")[2].textContent = "Σχόλιο"+(a.v&&a.v!=="ok"?" — παρακαλούμε συμπληρώστε":" (προαιρετικό)");
+ // ενημέρωση μετρητή ενότητας
+ const sid=k.split("_")[0], s=PLAN.sections.find(x=>x.id===sid);
+ const badge=document.querySelector("#sec_"+sid+" .secb"), done=secStat(s);
+ badge.textContent=done+"/"+s.steps.length;
+ badge.className="secb "+(done===s.steps.length?"done":done>0?"part":"");
+ bar();
+}
+function bar(){
+ const s=stats(), pct=Math.round(s.ans/s.tot*100);
+ document.getElementById("pf").style.width=pct+"%";
+ document.getElementById("pn").innerHTML=
+  "<span><b>"+s.ans+"</b> / "+s.tot+" βήματα</span>"
+  +"<span style='color:var(--ok)'>✓ "+s.ok+"</span>"
+  +"<span style='color:var(--warn)'>✏️ "+s.ch+"</span>"
+  +"<span style='color:var(--bad)'>✗ "+s.no+"</span>"
+  +(s.sk?"<span>⊘ "+s.sk+"</span>":"")
+  +(s.sh?"<span>📷 "+s.sh+"</span>":"");
+ document.getElementById("bst").innerHTML = s.ans===s.tot
+  ? "<b style='color:var(--ok)'>Ολοκληρώθηκαν και τα "+s.tot+"</b>"
+  : "Απομένουν <b>"+(s.tot-s.ans)+"</b> βήματα";
+}
+
+/* ---- εικόνες ---- */
+function addImg(k,file){
+ if(!file||!file.type.startsWith("image/")) return;
+ const r=new FileReader();
+ r.onload=e=>{ const img=new Image();
+  img.onload=()=>{ const max=1200, sc=Math.min(1,max/img.width);
+   const cv=document.createElement("canvas");
+   cv.width=img.width*sc; cv.height=img.height*sc;
+   cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);
+   const a=A(k); a.sh=a.sh||[]; a.sh.push(cv.toDataURL("image/jpeg",.72));
+   save(); document.getElementById("sh_"+k).innerHTML=shots(k); bar();
+   toast("📷 Η εικόνα προστέθηκε"); };
+  img.src=e.target.result; };
+ r.readAsDataURL(file);
+}
+function paste(ev,k){ const it=(ev.clipboardData||{}).items||[];
+ for(const i of it) if(i.type.startsWith("image/")){ ev.preventDefault(); addImg(k,i.getAsFile()); return; } }
+function pick(k){ const inp=document.createElement("input");
+ inp.type="file"; inp.accept="image/*";
+ inp.onchange=e=>{ if(e.target.files[0]) addImg(k,e.target.files[0]); };
+ inp.click(); }
+function delSh(k,i){ const a=A(k); a.sh.splice(i,1); save();
+ document.getElementById("sh_"+k).innerHTML=shots(k); bar(); }
+function big(k,i){ const ov=document.getElementById("ov");
+ document.getElementById("ovc").innerHTML='<img class="big" src="'+A(k).sh[i]+'">';
+ ov.classList.add("on"); }
+function closeOv(){ document.getElementById("ov").classList.remove("on"); }
+
+/* ---- ολοκλήρωση ---- */
+function finish(){
+ const s=stats(); let miss="";
+ PLAN.sections.forEach(sec=>sec.steps.forEach((st,i)=>{
+  const a=D.ans[key(sec.id,i)];
+  if(!a||!a.v) miss+='<a href="#" onclick="jump(\''+sec.id+'\',\''+key(sec.id,i)+'\');return false">'
+   +sec.ic+" "+esc(sec.n)+" → "+(i+1)+". "+esc(st.t)+'</a>'; }));
+ const ov=document.getElementById("ov");
+ document.getElementById("ovc").innerHTML='<div class="md">'
+  +'<h3>'+(miss?"Δεν τελειώσατε ακόμα":"Ευχαριστούμε!")+'</h3>'
+  +(miss
+   ? '<p style="margin:0 0 8px">Απομένουν <b>'+(s.tot-s.ans)+'</b> από '+s.tot+' βήματα. '
+     +'Πατήστε σε όποιο θέλετε για να πάτε εκεί:</p><div class="miss">'+miss+'</div>'
+     +'<p style="font-size:14px;color:var(--muted)">Μπορείτε να στείλετε το αρχείο και ημιτελές — '
+     +'θα φαίνεται όμως ποια βήματα δεν ελέγχθηκαν.</p>'
+   : '<p>Απαντήσατε και στα <b>'+s.tot+'</b> βήματα. '
+     +'<span class="pill">✓ '+s.ok+'</span> <span class="pill">✏️ '+s.ch+'</span> '
+     +'<span class="pill">✗ '+s.no+'</span>'+(s.sk?' <span class="pill">⊘ '+s.sk+'</span>':'')+'</p>')
+  +'<p style="margin:14px 0 6px"><b>Κατεβάστε το αρχείο και στείλτε το μας</b> με email ή WhatsApp:</p>'
+  +'<div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:12px">'
+  +'<button class="b" onclick="exportJSON()">⬇ Λήψη αρχείου</button>'
+  +'<button class="b g" onclick="copySummary()">📋 Αντιγραφή σύνοψης</button>'
+  +'<button class="b g" onclick="closeOv()">Πίσω</button></div></div>';
+ ov.classList.add("on");
+}
+function jump(sid,k){ closeOv(); openSecs[sid]=true;
+ document.getElementById("sec_"+sid).classList.add("open");
+ setTimeout(()=>document.getElementById("st_"+k).scrollIntoView({behavior:"smooth",block:"center"}),90); }
+
+function exportJSON(){
+ save();
+ const s=stats();
+ const out={ meta:{ who:D.who||"—", app:"ΜΑΡΜΑΡΑ ΝΙΚΟΥ ERP", ver:"UAT v1",
+   date:new Date().toLocaleString("el-GR"), total:s.tot, answered:s.ans,
+   ok:s.ok, change:s.ch, broken:s.no, skipped:s.sk, shots:s.sh }, sections:[] };
+ PLAN.sections.forEach(sec=>{
+  const o={ n:sec.ic+" "+sec.n, steps:[] };
+  sec.steps.forEach((st,i)=>{ const a=D.ans[key(sec.id,i)]||{v:"",c:"",sh:[]};
+   o.steps.push({ n:(i+1)+". "+st.t, verdict:a.v||"—",
+     comment:a.c||"", shots:a.sh||[] }); });
+  out.sections.push(o);
+ });
+ const blob=new Blob([JSON.stringify(out)],{type:"application/json"});
+ const a=document.createElement("a");
+ a.href=URL.createObjectURL(blob);
+ a.download="ΜΑΡΜΑΡΑ_ΝΙΚΟΥ_έλεγχος_"+(D.who||"").replace(/\s+/g,"_")+"_"
+  +new Date().toISOString().slice(0,10)+".json";
+ a.click();
+ toast("⬇ Το αρχείο κατέβηκε — στείλτε το μας");
+}
+function copySummary(){
+ const s=stats(); let t="ΜΑΡΜΑΡΑ ΝΙΚΟΥ — Έλεγχος ERP\n"+(D.who||"")+" · "+new Date().toLocaleDateString("el-GR")
+  +"\n"+s.ans+"/"+s.tot+" βήματα · ✓"+s.ok+" ✏️"+s.ch+" ✗"+s.no+(s.sk?" ⊘"+s.sk:"")+"\n";
+ PLAN.sections.forEach(sec=>{
+  let body="";
+  sec.steps.forEach((st,i)=>{ const a=D.ans[key(sec.id,i)];
+   if(a&&a.v&&a.v!=="ok"){ body+="  "+(a.v==="ch"?"✏️":a.v==="no"?"✗":"⊘")+" "+st.t
+    +(a.c?": "+a.c:"")+(a.sh&&a.sh.length?" [📷"+a.sh.length+"]":"")+"\n"; } });
+  if(body) t+="\n"+sec.ic+" "+sec.n+"\n"+body;
+ });
+ navigator.clipboard.writeText(t).then(()=>toast("📋 Αντιγράφηκε"))
+  .catch(()=>{ const ta=document.createElement("textarea"); ta.value=t;
+   document.body.appendChild(ta); ta.select(); document.execCommand("copy");
+   document.body.removeChild(ta); toast("📋 Αντιγράφηκε"); });
+}
+
+document.getElementById("who").value = D.who||"";
+render();
+window.addEventListener("beforeunload", save);
+</script></body></html>
