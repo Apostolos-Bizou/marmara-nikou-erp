@@ -591,6 +591,45 @@ button.b.sm{padding:8px 11px;font-size:12px}
   .ct-terms h4{font-family:"Roboto Condensed",sans-serif;font-weight:700;font-size:9pt;
     text-transform:uppercase;letter-spacing:.08em;margin:0 0 1.5mm;break-after:avoid}
   .ct-terms p{margin:0 0 4mm;text-align:justify}
+
+  /* ---- τιμοκατάλογος (πίνακας τιμών) ---- */
+  .pl-doc{font-size:8.5pt;color:#111}
+  .pl-head{display:flex;gap:6mm;align-items:stretch;border-bottom:3px solid #000;
+    padding-bottom:4mm;margin-bottom:5mm}
+  .pl-mk{flex:0 0 14mm;background:#E1DDAE;position:relative}
+  .pl-mk svg{position:absolute;inset:0;width:100%;height:100%}
+  .pl-hb{flex:1;min-width:0}
+  .pl-br{font-family:"Roboto Condensed",sans-serif;font-weight:900;font-size:19pt;
+    text-transform:uppercase;line-height:1}
+  .pl-t{font-family:"Roboto Condensed",sans-serif;font-weight:700;font-size:8pt;
+    letter-spacing:.22em;text-transform:uppercase;color:#666;margin-top:1.5mm}
+  .pl-n{font-family:"Roboto Condensed",sans-serif;font-weight:900;font-size:13pt;
+    background:#E1DDAE;display:inline-block;padding:1mm 3mm;margin-top:2mm}
+  .pl-m{font-size:7.5pt;color:#555;margin-top:1.5mm;line-height:1.5}
+  .pl-co{flex:0 0 46mm;font-size:7pt;color:#555;line-height:1.6;text-align:right}
+  .pl-int{background:#E1DDAE;border:1.5px solid #000;padding:2mm 3mm;margin-bottom:4mm;
+    font-size:8pt;font-weight:700}
+  .pl-tbl{width:100%;border-collapse:collapse;font-size:8pt}
+  .pl-tbl thead{display:table-header-group}
+  .pl-tbl th{text-align:left;font-family:"Roboto Condensed",sans-serif;font-weight:700;
+    font-size:6.5pt;letter-spacing:.08em;text-transform:uppercase;color:#666;
+    padding:1.5mm 2mm 1.5mm 0;border-bottom:1.5px solid #000}
+  .pl-tbl td{padding:1.4mm 2mm 1.4mm 0;border-bottom:.4px solid #ddd;vertical-align:top}
+  .pl-tbl .r{text-align:right}
+  .pl-tbl tr{page-break-inside:avoid}
+  .pl-fam td{background:#F2F0E4;font-family:"Roboto Condensed",sans-serif;font-weight:900;
+    font-size:8.5pt;letter-spacing:.1em;text-transform:uppercase;padding:2mm 2mm;
+    border-bottom:1px solid #000;border-top:1px solid #000}
+  .pl-c{font-family:ui-monospace,monospace;font-size:7pt;color:#555}
+  .pl-own{font-size:6.5pt;background:#E1DDAE;padding:.4mm 1.5mm;border-radius:1mm;font-weight:700}
+  .pl-ov{font-size:6.5pt;color:#666}
+  .pl-terms{margin-top:6mm;padding-top:4mm;border-top:1px solid #000;
+    columns:2;column-gap:8mm;font-size:7.5pt}
+  .pl-terms h4{font-family:"Roboto Condensed",sans-serif;font-weight:700;font-size:8.5pt;
+    text-transform:uppercase;letter-spacing:.08em;margin:0 0 1.5mm;break-after:avoid}
+  .pl-terms p{margin:0 0 3mm;text-align:justify}
+  .pl-foot{margin-top:5mm;padding-top:2mm;border-top:1px solid #000;
+    font-size:7pt;color:#777;text-align:center}
 }
 </style>
 </head>
@@ -2591,6 +2630,7 @@ var ROLES=[
   {id:"admin", label:"Διαχείριση", groups:[
     {g:"Επισκόπηση", items:["Πίνακας ελέγχου"]},
     {g:"Κατάλογος", items:["Προϊόντα","Τιμοκατάλογοι"]},
+    {g:"Έγγραφα", items:["Κέντρο εκτυπώσεων"]},
     {g:"Ρυθμίσεις", items:["Παράμετροι κόστους","Οδηγός χρήσης","Χρήστες"]}]},
   {id:"crm", label:"Πωλήσεις", groups:[
     {g:"CRM", items:["Πελάτες","Προμηθευτές"]},
@@ -4676,6 +4716,10 @@ function viewPriceListCard(){
   h+=kpi("Ισχύει έως",l.to||"—",l.to?(-daysSince(l.to))+" ημέρες ακόμα":"χωρίς λήξη",l.to&&-daysSince(l.to)<60);
   h+='</div>';
 
+  h+='<div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap">'
+   +'<button class="b" onclick="printPriceList(\''+l.id+'\',{terms:true})">🖨 Εκτύπωση τιμοκαταλόγου</button>'
+   +'<button class="b ghost" onclick="printPriceList(\''+l.id+'\',{terms:true,cost:true})">🖨 Εσωτερική έκδοση (με κόστη)</button>'
+   +'<button class="b ghost" onclick="PB.pl=\''+l.id+'\';goSec(\'admin\',\'Κέντρο εκτυπώσεων\')">Κέντρο εκτυπώσεων ↗</button></div>';
   h+=editBar(l,"Τιμοκατάλογος: "+l.name);
   var tabs=["Στοιχεία","Τιμές","Πελάτες","Εξαιρέσεις"];
   h+='<div style="display:flex;gap:0;border-bottom:2px solid var(--line);margin:24px 0 18px;overflow-x:auto">';
@@ -9942,6 +9986,240 @@ function fieldIncident(){
 }
 
 /* ============================================================
+   ΚΕΝΤΡΟ ΕΚΤΥΠΩΣΕΩΝ — ένα σημείο για κάθε έγγραφο
+   ============================================================ */
+var PB={doc:"pricelist", pl:"PL-RET", prod:"", ord:"", quote:"", cust:"",
+        fams:[], photos:true, cost:false, terms:true, cover:true, onlyStock:false};
+
+function pbSet(k,v){ PB[k]=v; render(); }
+
+/* ---- ΝΕΟ: εκτύπωση τιμοκαταλόγου ως πίνακας τιμών ---- */
+function printPriceList(plId,opts){
+  opts=opts||{};
+  var l=find(DATA.priceLists,"id",plId||PB.pl); if(!l) return;
+  var C=CONFIG.company, showCost=!!opts.cost;
+  var fams=opts.fams&&opts.fams.length?opts.fams:null;
+
+  var rows=[];
+  DATA.products.forEach(function(p){
+    if(p.status!=="Ενεργό") return;
+    if(fams && fams.indexOf(p.family)<0) return;
+    p.variants.forEach(function(v){
+      if(opts.onlyStock && !v.stock) return;
+      var q=plPrice(l,v), sc=stdCost(p.code,v.th,null);
+      rows.push({p:p,v:v,price:q.p,over:q.src==="over",cost:sc.full,
+                 mg: q.p&&sc.full? (q.p-sc.full)/q.p*100 : null});
+    });
+  });
+  if(!rows.length){ toast("Καμία γραμμή με αυτά τα κριτήρια."); return; }
+  rows.sort(function(a,b){ return a.p.family.localeCompare(b.p.family,"el")
+    || a.p.name.localeCompare(b.p.name,"el") || a.v.th-b.v.th; });
+
+  var h='<div class="pl-doc">';
+  h+='<div class="pl-head"><div class="pl-mk"><svg viewBox="0 0 40 100" preserveAspectRatio="none">'
+   +'<path d="M20 0 L23 22 L16 28 L24 36 L40 34 L40 46 L23 44 L18 54 L21 74 L14 100" fill="none" stroke="#000" stroke-width="7"/>'
+   +'<path d="M0 32 L14 30 L20 36 L11 42 L0 40 Z" fill="#000"/></svg></div>'
+   +'<div class="pl-hb"><div class="pl-br">ΜΑΡΜΑΡΑ ΝΙΚΟΥ</div>'
+   +'<div class="pl-t">Τιμοκατάλογος</div>'
+   +'<div class="pl-n">'+esc(l.name)+'</div>'
+   +'<div class="pl-m">Ισχύς '+esc(l.from||"—")+' έως '+esc(l.to||"—")
+   + (l.mk?' · '+(l.mk>0?"+":"")+num(l.mk,1)+'% επί της τιμής βάσης':'')
+   +' · '+esc(l.scope)+' · νόμισμα '+esc(l.cur||"EUR")+'</div>'
+   +'<div class="pl-m">Έκδοση '+new Date().toLocaleDateString("el-GR")+' · '+rows.length+' κωδικοί</div></div>'
+   +'<div class="pl-co">'+esc(C.legal)+'<br>'+esc(C.addr)+', '+esc(C.zip)+' '+esc(C.city)
+   +'<br>ΑΦΜ '+esc(C.vat)+'<br>'+esc(C.tel)+'<br>'+esc(C.email)+'</div></div>';
+
+  if(showCost) h+='<div class="pl-int">⚠️ ΕΣΩΤΕΡΙΚΗ ΕΚΔΟΣΗ — περιέχει κόστη και περιθώρια. Δεν δίνεται σε πελάτη.</div>';
+
+  var cur="";
+  h+='<table class="pl-tbl"><thead><tr><th>Κωδικός</th><th>Προϊόν</th><th>Μορφή</th>'
+   +'<th class="r">Πάχος</th><th>Φινίρισμα</th><th class="r">Μονάδα</th>'
+   +(showCost?'<th class="r">Κόστος</th><th class="r">Περιθ.</th>':'')
+   +'<th class="r">Τιμή</th></tr></thead><tbody>';
+  rows.forEach(function(r){
+    if(r.p.family!==cur){ cur=r.p.family;
+      h+='<tr class="pl-fam"><td colspan="'+(showCost?9:7)+'">'+esc(cur)+'</td></tr>'; }
+    h+='<tr><td class="pl-c">'+esc(r.v.sku)+'</td>'
+     +'<td><b>'+esc(r.p.name)+'</b>'+(r.p.own?' <span class="pl-own">ιδιόκτητο</span>':'')+'</td>'
+     +'<td>'+esc(r.v.form)+'</td><td class="r">'+r.v.th+' cm</td>'
+     +'<td>'+esc(r.v.fin)+'</td><td class="r">'+esc(r.v.unit)+'</td>'
+     +(showCost?'<td class="r">'+(r.cost?eur2(r.cost):"—")+'</td>'
+       +'<td class="r">'+(r.mg!==null?num(r.mg,1)+'%':"—")+'</td>':'')
+     +'<td class="r"><b>'+eur2(r.price)+'</b>'+(r.over?' <span class="pl-ov">ειδική</span>':'')+'</td></tr>';
+  });
+  h+='</tbody></table>';
+
+  if(opts.terms!==false){
+    h+='<div class="pl-terms"><h4>Όροι</h4>'
+     +'<p>Οι τιμές είναι σε '+esc(l.cur||"EUR")+' και <b>δεν περιλαμβάνουν ΦΠΑ '+CONFIG.vat+'%</b>. '
+     +'Ισχύουν έως '+esc(l.to||"—")+' ή μέχρι νεότερη έκδοση. Ισχύει η τιμή κατά τον χρόνο επιβεβαίωσης της παραγγελίας.</p>'
+     +'<p>Το μάρμαρο είναι φυσικό πέτρωμα· διαφοροποιήσεις χρώματος και φλέβωσης είναι εγγενείς και δεν συνιστούν ελάττωμα. '
+     +'Η ολισθηρότητα εξαρτάται από το φινίρισμα — γυαλισμένες επιφάνειες δεν προτείνονται για υγρούς και εξωτερικούς χώρους. '
+     +'Τεχνικά δελτία και Δηλώσεις Επιδόσεων διατίθενται κατόπιν αιτήματος.</p>'
+     +(l.notes?'<p><b>Σημείωση:</b> '+esc(l.notes)+'</p>':'')
+     +'</div>';
+  }
+  h+='<div class="pl-foot">ΜΑΡΜΑΡΑ ΝΙΚΟΥ · '+esc(l.name)+' · '+esc(C.tel)+' · '+esc(C.email)+'</div>';
+  h+='</div>';
+  document.getElementById("printArea").innerHTML='<div class="ct">'+h+'</div>';
+  setTimeout(function(){ window.print(); },60);
+}
+
+/* ---- Κέντρο εκτυπώσεων ---- */
+function viewPrintCentre(){
+  var DOCS=[
+    {k:"pricelist", ic:"💶", n:"Τιμοκατάλογος", d:"Πίνακας τιμών ανά κωδικό — συνοπτικός, χωρίς φωτογραφίες. Για αποστολή σε πελάτη ή για την έκθεση."},
+    {k:"catalog",   ic:"📖", n:"Κατάλογος προϊόντων", d:"Μία σελίδα ανά προϊόν με φωτογραφίες, τεχνικά και τιμές. Εντυπωσιακό, για παρουσίαση."},
+    {k:"product",   ic:"💠", n:"Δελτίο προϊόντος", d:"Μονή σελίδα για ένα προϊόν."},
+    {k:"quote",     ic:"📝", n:"Προσφορά", d:"Επίσημη προσφορά με όρους και υπογραφές."},
+    {k:"order",     ic:"📋", n:"Δελτίο παραγγελίας", d:"Με στάδια, σύνολα και κωδικό παρακολούθησης."},
+    {k:"track",     ic:"🏷️", n:"Κάρτα παρακολούθησης", d:"Barcode + QR για το δελτίο αποστολής ή το A-frame."},
+    {k:"legal",     ic:"📜", n:"Συμφωνητικά", d:"Συνεργασίας, GDPR, προμήθειας, DPA — συμπληρώνονται αυτόματα."}
+  ];
+  var cur=DOCS.filter(function(d){ return d.k===PB.doc; })[0]||DOCS[0];
+
+  var h='<h1>Κέντρο εκτυπώσεων</h1><p class="sub">Ένα σημείο για κάθε έγγραφο. Επιλέξτε τι θέλετε, ρυθμίστε το, τυπώστε.</p>';
+
+  h+='<div class="kg" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">';
+  DOCS.forEach(function(d){
+    h+='<div class="kb'+(d.k===PB.doc?" warn":"")+'" style="cursor:pointer" onclick="pbSet(\'doc\',\''+d.k+'\')">'
+     +'<div style="font-size:21px">'+d.ic+'</div>'
+     +'<div style="font-family:\'Roboto Condensed\',sans-serif;font-weight:900;font-size:15px;margin-top:5px">'+esc(d.n)+'</div>'
+     +'<div class="n" style="margin-top:4px">'+esc(d.d)+'</div></div>';
+  });
+  h+='</div>';
+
+  h+='<div class="vein"></div><h2 class="sec">'+cur.ic+' '+esc(cur.n)+'</h2>';
+
+  /* ---------- ΤΙΜΟΚΑΤΑΛΟΓΟΣ ---------- */
+  if(PB.doc==="pricelist"||PB.doc==="catalog"){
+    var pls=DATA.priceLists.filter(function(l){ return l.kind!=="purchase"; });
+    h+='<div class="frow" style="max-width:900px"><div><label class="f">Τιμοκατάλογος</label>'
+     +'<select class="f" onchange="pbSet(\'pl\',this.value)">'
+     + pls.map(function(l){ return '<option value="'+l.id+'"'+(l.id===PB.pl?" selected":"")+'>'
+        +esc(l.name)+' ('+(l.mk>0?"+":"")+num(l.mk,1)+'%)'+((l.cust||[]).length?' — ειδικός':'')+'</option>'; }).join("")
+     +'</select></div></div>';
+
+    var lsel=find(DATA.priceLists,"id",PB.pl);
+    if(lsel){
+      var cn=(lsel.cust||[]).map(function(c){ var x=find(DATA.customers,"id",c); return x?x.brand:c; });
+      h+='<div class="card" style="margin:12px 0;padding:12px 15px;font-size:13.5px;line-height:1.7">'
+       +'<strong>'+esc(lsel.name)+'</strong> · ισχύς έως '+esc(lsel.to||"—")
+       +' · προτεραιότητα '+lsel.prio+' · '+esc(lsel.scope)
+       +(cn.length?'<br>Πελάτες: '+esc(cn.join(" · ")):'<br><span style="color:var(--muted)">Γενικός κατάλογος — χωρίς ονομαστική ανάθεση</span>')
+       +(Object.keys(lsel.over||{}).length?'<br><span class="pill">'+Object.keys(lsel.over).length+' εξαιρέσεις SKU</span>':'')
+       +'</div>';
+    }
+
+    var FAM=uniq(DATA.products,function(r){ return r.family; });
+    h+='<div style="margin-bottom:14px"><label class="f">Οικογένειες <span style="color:var(--muted);font-weight:400">— κενό = όλες</span></label>'
+     + chkGroup("pbFam",FAM,PB.fams,180)+'</div>';
+
+    h+='<div class="frow" style="max-width:900px">';
+    if(PB.doc==="pricelist"){
+      h+='<div><label class="f">Μόνο με απόθεμα</label><select class="f" onchange="pbSet(\'onlyStock\',this.value===\'1\')">'
+       +'<option value="0"'+(!PB.onlyStock?" selected":"")+'>Όλοι οι κωδικοί</option>'
+       +'<option value="1"'+(PB.onlyStock?" selected":"")+'>Μόνο διαθέσιμα</option></select></div>'
+       +'<div><label class="f">Έκδοση</label><select class="f" onchange="pbSet(\'cost\',this.value===\'1\')">'
+       +'<option value="0"'+(!PB.cost?" selected":"")+'>Πελάτη — μόνο τιμές</option>'
+       +'<option value="1"'+(PB.cost?" selected":"")+'>⚠️ Εσωτερική — με κόστη & περιθώρια</option></select></div>';
+    } else {
+      h+='<div><label class="f">Εξώφυλλο</label><select class="f" onchange="pbSet(\'cover\',this.value===\'1\')">'
+       +'<option value="1"'+(PB.cover?" selected":"")+'>Ναι</option><option value="0"'+(!PB.cover?" selected":"")+'>Όχι</option></select></div>'
+       +'<div><label class="f">Μόνο με φωτογραφία</label><select class="f" onchange="pbSet(\'photos\',this.value===\'1\')">'
+       +'<option value="1"'+(PB.photos?" selected":"")+'>Ναι</option><option value="0"'+(!PB.photos?" selected":"")+'>Όχι</option></select></div>';
+    }
+    h+='<div><label class="f">Σελίδα όρων</label><select class="f" onchange="pbSet(\'terms\',this.value===\'1\')">'
+     +'<option value="1"'+(PB.terms?" selected":"")+'>Ναι</option><option value="0"'+(!PB.terms?" selected":"")+'>Όχι</option></select></div></div>';
+
+    /* προεπισκόπηση πλήθους */
+    var fsel=chkValsSafe("pbFam");
+    var cnt=0; DATA.products.forEach(function(p){
+      if(p.status!=="Ενεργό") return;
+      if(PB.fams.length && PB.fams.indexOf(p.family)<0) return;
+      if(PB.doc==="catalog"){ if(!PB.photos||mainPhoto(p)) cnt++; }
+      else p.variants.forEach(function(v){ if(!PB.onlyStock||v.stock) cnt++; });
+    });
+    h+='<div class="card" style="margin:12px 0;padding:13px 15px">'
+     +(PB.doc==="pricelist"
+       ? '<strong>'+cnt+' κωδικοί</strong> θα τυπωθούν · εκτίμηση '+Math.max(1,Math.ceil(cnt/28))+'–'+Math.ceil(cnt/22)+' σελίδες'
+       : '<strong>'+cnt+' προϊόντα</strong> · '+(PB.cover?1:0)+' εξώφυλλο + '+cnt+' σελίδες'+(PB.terms?' + 1 όροι':''))
+     +'</div>';
+
+    h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">'
+     +'<button class="b" onclick="pbFams();'
+     +(PB.doc==="pricelist"
+       ? 'printPriceList(PB.pl,{fams:PB.fams,cost:PB.cost,terms:PB.terms,onlyStock:PB.onlyStock})'
+       : 'pbCatalog()')
+     +'">🖨 Εκτύπωση</button>'
+     +'<button class="b ghost" onclick="goPL(\''+PB.pl+'\')">Άνοιγμα τιμοκαταλόγου ↗</button></div>';
+  }
+
+  /* ---------- ΜΟΝΟ ΕΓΓΡΑΦΟ ---------- */
+  if(PB.doc==="product"){
+    h+='<div class="frow" style="max-width:620px"><div><label class="f">Προϊόν</label>'
+     +'<select class="f" onchange="pbSet(\'prod\',this.value)">'
+     + DATA.products.map(function(p){ return '<option value="'+p.code+'"'+(p.code===PB.prod?" selected":"")+'>'
+        +esc(p.name)+'</option>'; }).join("")+'</select></div></div>'
+     +'<div style="margin-top:12px"><button class="b" onclick="printProductSheet(PB.prod||DATA.products[0].code)">🖨 Εκτύπωση δελτίου</button></div>';
+  }
+  if(PB.doc==="quote"){
+    h+='<div class="frow" style="max-width:620px"><div><label class="f">Προσφορά</label>'
+     +'<select class="f" onchange="pbSet(\'quote\',this.value)">'
+     + DATA.quotes.map(function(q){ var c=find(DATA.customers,"id",q.cust);
+        return '<option value="'+q.id+'"'+(q.id===PB.quote?" selected":"")+'>'+esc(q.id)+' — '
+        +esc(c?c.brand:"")+' · '+eur(qtTotal(q))+'</option>'; }).join("")+'</select></div></div>'
+     +'<div style="margin-top:12px"><button class="b" onclick="printQuote(PB.quote||DATA.quotes[0].id)">🖨 Εκτύπωση προσφοράς</button></div>';
+  }
+  if(PB.doc==="order"||PB.doc==="track"){
+    h+='<div class="frow" style="max-width:620px"><div><label class="f">Παραγγελία</label>'
+     +'<select class="f" onchange="pbSet(\'ord\',this.value)">'
+     + DATA.orders.map(function(o){ var c=find(DATA.customers,"id",o.cust);
+        return '<option value="'+o.code+'"'+(o.code===PB.ord?" selected":"")+'>'+esc(o.code)+' — '
+        +esc(c?c.brand:"")+' · '+esc(o.project.name)+'</option>'; }).join("")+'</select></div></div>'
+     +'<div style="margin-top:12px"><button class="b" onclick="'
+     +(PB.doc==="order"?'printOrder':'printTrack')+'(PB.ord||DATA.orders[0].code)">🖨 Εκτύπωση</button></div>';
+  }
+  if(PB.doc==="legal"){
+    h+='<div class="frow" style="max-width:620px"><div><label class="f">Πελάτης ή προμηθευτής</label>'
+     +'<select class="f" onchange="pbSet(\'cust\',this.value)">'
+     + DATA.customers.map(function(c){ return '<option value="C|'+c.id+'"'+("C|"+c.id===PB.cust?" selected":"")+'>Πελάτης — '+esc(c.brand)+'</option>'; }).join("")
+     + DATA.suppliers.map(function(s){ return '<option value="S|'+s.id+'"'+("S|"+s.id===PB.cust?" selected":"")+'>Προμηθευτής — '+esc(s.brand)+'</option>'; }).join("")
+     +'</select></div></div>'
+     +'<p class="sub" style="margin-top:10px">Τα συμφωνητικά συμπληρώνονται αυτόματα από την καρτέλα. Ανοίξτε την και πατήστε «Δημιουργία & εκτύπωση» στην ενότητα Νομικά.</p>'
+     +'<div style="margin-top:8px"><button class="b" onclick="pbLegal()">Άνοιγμα ενότητας Νομικά ↗</button></div>';
+  }
+
+  h+='<div class="vein"></div><div class="card" style="font-size:13.5px;color:var(--muted)">'
+   +'💡 Στο παράθυρο εκτύπωσης του browser: <strong>Κεφαλίδες και υποσέλιδα: ΟΧΙ</strong> · '
+   +'<strong>Γραφικά φόντου: ΝΑΙ</strong>. Αλλιώς τυπώνεται η διαδρομή του αρχείου και χάνονται τα χρώματα.</div>';
+  return h;
+}
+function chkValsSafe(cls){ try{ return chkVals(cls); }catch(e){ return []; } }
+function pbFams(){ PB.fams=chkValsSafe("pbFam"); }
+function pbCatalog(){
+  var l=find(DATA.priceLists,"id",PB.pl)||DATA.priceLists[0];
+  var list=DATA.products.filter(function(x){
+    if(x.status!=="Ενεργό") return false;
+    if(PB.fams.length && PB.fams.indexOf(x.family)<0) return false;
+    if(PB.photos && !mainPhoto(x)) return false;
+    return true; });
+  if(!list.length){ toast("Κανένα προϊόν με αυτά τα κριτήρια."); return; }
+  list.sort(function(a,b){ return a.family.localeCompare(b.family,"el")||a.name.localeCompare(b.name,"el"); });
+  var h="";
+  if(PB.cover) h+=catCover(l,list.length);
+  list.forEach(function(x,i){ h+=catProduct(x,l,i+1); });
+  if(PB.terms) h+=catTerms(l);
+  document.getElementById("printArea").innerHTML='<div class="ct">'+h+'</div>';
+  setTimeout(function(){ window.print(); },60);
+}
+function pbLegal(){
+  var v=PB.cust||("C|"+DATA.customers[0].id);
+  var parts=v.split("|");
+  if(parts[0]==="C") goCust(parts[1],"Νομικά"); else goSup(parts[1],"Νομικά");
+}
+
+/* ============================================================
    ΠΑΡΑΓΓΕΛΙΕΣ — το σημείο όπου ενώνονται όλα
    Πελάτης → τιμοκατάλογος → SKU → απόθεμα → παραγωγή → παράδοση
    ============================================================ */
@@ -10632,6 +10910,7 @@ function render(){
       : SEC==="Προϊόντα" ? viewProducts()
       : SEC==="Τιμοκατάλογοι" ? viewPriceLists()
       : SEC==="Παράμετροι κόστους" ? viewParams()
+      : SEC==="Κέντρο εκτυπώσεων" ? viewPrintCentre()
       : SEC==="Οδηγός χρήσης" ? viewGuideTeaser()
       : SEC==="Χρήστες" ? viewUsers()
       : stub(SEC,"Χρήστες, ρόλοι και δικαιώματα.","Φάση Φ4b");
