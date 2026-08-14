@@ -59,6 +59,15 @@ header{position:sticky;top:0;z-index:60;background:var(--ink);color:var(--sand);
 .tools{display:flex;gap:6px;flex:0 0 auto}
 .tbtn{background:transparent;border:1px solid rgba(225,221,174,.28);color:var(--sand);
   padding:6px 10px;border-radius:var(--r);cursor:pointer;font-size:13px}
+/* Φύλλο ελέγχου — ένας σύνδεσμος για τον πελάτη, όχι δύο */
+.uatbtn{display:inline-flex;align-items:center;gap:7px;text-decoration:none;
+ background:var(--sand);color:var(--ink);border:1px solid var(--ink);
+ padding:7px 13px;border-radius:8px;font-weight:700;font-size:13.5px;
+ white-space:nowrap;margin-right:4px;transition:transform .12s,box-shadow .12s}
+.uatbtn:hover{box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.uatbtn:active{transform:translateY(1px)}
+.uatico{font-size:15px;line-height:1}
+@media(max-width:1100px){ .uatlbl{display:none} .uatbtn{padding:7px 10px} }
 .tbtn:hover{border-color:var(--sand)}
 
 /* ---------- shell: sidebar + content ---------- */
@@ -694,6 +703,9 @@ button.b.sm{padding:8px 11px;font-size:12px}
       <div class="gsp" id="gsp"></div>
     </div>
     <div class="tools">
+      <a class="uatbtn" href="uat.html" target="mn_uat"
+         title="Άνοιγμα του φύλλου ελέγχου — καταγράψτε τι βρήκατε">
+        <span class="uatico">📝</span><span class="uatlbl">Φύλλο ελέγχου</span></a>
       <button class="tbtn" id="themeBtn" title="Εναλλαγή θέματος">◐</button>
       <button class="tbtn" id="resetBtn" title="Επαναφορά δοκιμαστικών δεδομένων">↺</button>
       <button class="tbtn" id="gdBtn" title="Οδηγός χρήσης">📖</button>
@@ -11184,6 +11196,11 @@ if(!LOGGED) setTimeout(function(){ var u=document.getElementById("lgU"); if(u) u
 
 var savedTheme="light"; try{ savedTheme=localStorage.getItem("mn_theme")||"light"; }catch(e){}
 setTheme(savedTheme);
+/* Ονομάζουμε την καρτέλα ώστε το φύλλο ελέγχου να ΕΠΙΣΤΡΕΦΕΙ εδώ αντί να
+   ανοίγει τρίτη καρτέλα. Μαζί με το window.name του uat.html, ο πελάτης
+   έχει πάντα ακριβώς δύο καρτέλες: εφαρμογή ⇄ έλεγχος. */
+try{ window.name="mn_erp"; }catch(e){}
+
 loadState();
 /* Αν ήρθε από deep link και η συνεδρία είναι ενεργή, πήγαινε κατευθείαν εκεί. */
 if(!(LOGGED && applyHash())) render();
