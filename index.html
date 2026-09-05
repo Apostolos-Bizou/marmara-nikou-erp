@@ -12922,9 +12922,13 @@ function csSVG(g,edges,holes,small,live){
      και δούλευε όσο μετρούσαμε σε εκατοστά· με τα χιλιοστά οι ετικέτες
      διαστάσεων μεγάλωσαν δεκαπλάσια και έπεφταν έξω από το παράθυρο. */
   var mx=Math.max(W,H)||1;
+  var fs=mx/26, sw=mx/320;
+  /* Πόσο βγαίνει έξω η πιο απομακρυσμένη ετικέτα διάστασης:
+     1,5 × η γραμμή διαστασιολόγησης, συν μισό κείμενο. */
+  var dimOut = (mx/22)*1.5 + fs*1.9;
   pad = drawing ? mx/18 : (small ? mx/9 : mx/7.5);
+  if(g.kind==="poly") pad = Math.max(pad, dimOut);
   var vb=[minX-pad,minY-pad,W+pad*2,H+pad*2];
-  var fs=Math.max(W,H)/26, sw=Math.max(W,H)/320;
   var o='<svg viewBox="'+vb.join(' ')+'" xmlns="http://www.w3.org/2000/svg" font-family="Inter,sans-serif"'+
         (drawing?' id="csLive" style="cursor:crosshair;touch-action:none"':'')+'>';
 
@@ -12977,7 +12981,8 @@ function csSVG(g,edges,holes,small,live){
     var cm=Math.max(half*0.55, fs*0.35);
     o+='<line x1="'+(cx-cm)+'" y1="'+cy+'" x2="'+(cx+cm)+'" y2="'+cy+'" stroke="#000" stroke-width="'+(sw*0.5)+'"/>';
     o+='<line x1="'+cx+'" y1="'+(cy-cm)+'" x2="'+cx+'" y2="'+(cy+cm)+'" stroke="#000" stroke-width="'+(sw*0.5)+'"/>';
-    o+='<text x="'+(cx+half+fs*0.35)+'" y="'+cy+'" font-size="'+(fs*0.8)+
+    var hfs=Math.min(fs*0.8, Math.max(fs*0.34, half*1.1));
+    o+='<text x="'+(cx+half+hfs*0.45)+'" y="'+cy+'" font-size="'+hfs+
        '" fill="#000" dominant-baseline="middle">'+csHoleTxt(hh)+((+hh.q>1)?(" ×"+hh.q):"")+'</text>';
 
     /* ΑΠΟΣΤΑΣΕΙΣ ΤΟΠΟΘΕΤΗΣΗΣ — χωρίς αυτές ο τεχνίτης ξέρει το
@@ -13559,7 +13564,8 @@ function viewCutSheets(){
    +'<th class="rt">Κομμάτια</th><th class="rt">m²</th><th>Ημ. κοπής</th><th>Κατάσταση</th></tr></thead><tbody>';
   DATA.cutSheets.forEach(function(c){
     var tm=0, tp=0;
-    c.pieces.forEach(function(p){ var s=csSummary(p); tm+=s.m2; tp+=(+p.qty||1); });
+    c.pieces.forEach(function(p){ tm+=csSummary(p).m2; });
+    tp=csSheetPcs(c);
     h+='<tr class="cl" onclick="goCS(\''+c.code+'\')"><td><span class="id">'+esc(c.code)+'</span></td>'
      +'<td>'+esc(custName(c.cust))+'</td><td>'+esc(c.project||"—")+'</td><td>'+esc(csMats(c))+'</td>'
      +'<td class="rt">'+tp+'</td><td class="rt">'+(Math.round(tm*100)/100).toFixed(2).replace(".",",")+'</td>'
@@ -13615,6 +13621,14 @@ function csSummary(p){
 /* Τα υλικά ενός δελτίου βγαίνουν από τις γραμμές του. Ένα δελτίο
    μπορεί να έχει δεκαπέντε διαφορετικά υλικά και τεχνοτροπίες —
    γι' αυτό δεν υπάρχει «υλικό του δελτίου». */
+/* Πόσα ΦΥΣΙΚΑ κομμάτια μαρμάρου βγαίνουν από ένα δελτίο.
+   Οι ελεύθερες γραμμές (τοποθέτηση, μεταφορικά, σοβατεπί σε μ.μ.)
+   δεν είναι κομμάτια και δεν μετριούνται εδώ. */
+function csSheetPcs(cs){
+  var n=0;
+  (cs.pieces||[]).forEach(function(L){ if(!csIsFree(L)) n+=csLinePcs(L); });
+  return n;
+}
 function csMats(cs){
   var seen=[];
   (cs.pieces||[]).forEach(function(L){ if(!csIsFree(L) && L.mat && seen.indexOf(L.mat)<0) seen.push(L.mat); });
