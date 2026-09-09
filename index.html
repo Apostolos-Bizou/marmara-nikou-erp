@@ -1547,19 +1547,19 @@ var SEED = {
      Χωρίς αυτή τη διάκριση δεν βγαίνει σωστό κόστος ανά m³/m². */
   vehicles:[
     {id:"V-01",plate:"ΙΝΑ-4821",cat:"Φορτηγό",make:"Volvo",model:"FH16 750 (τράκτορας)",year:2016,
-     cc:16120,fuel:"diesel",meter:"km",cons:38,capacity:"40 t · πλατφόρμα όγκων",cc_id:"CC-DIA",
+     cc:16120,fuel:"diesel",meter:"km",cons:38,payload:26,capacity:"40 t · πλατφόρμα όγκων",cc_id:"CC-DIA",
      odo:412500,acq:98000,status:"Ενεργό",kteo:"2026-11-04",ins:"2027-02-18"},
     {id:"V-02",plate:"ΙΝΑ-4822",cat:"Φορτηγό",make:"MAN",model:"TGS 33.480 ανατρεπόμενο",year:2018,
-     cc:12419,fuel:"diesel",meter:"km",cons:34,capacity:"26 t · αδρανή",cc_id:"CC-LAT",
+     cc:12419,fuel:"diesel",meter:"km",cons:34,payload:16,capacity:"26 t · αδρανή",cc_id:"CC-LAT",
      odo:286400,acq:86000,status:"Ενεργό",kteo:"2026-09-22",ins:"2027-01-10"},
     {id:"V-03",plate:"ΙΝΑ-3310",cat:"Φορτηγό",make:"Mercedes-Benz",model:"Actros 2545 με γερανό",year:2014,
-     cc:12809,fuel:"diesel",meter:"km",cons:31,capacity:"18 t · A-frames πλακών",cc_id:"CC-DIA",
+     cc:12809,fuel:"diesel",meter:"km",cons:31,payload:11,capacity:"18 t · A-frames πλακών",cc_id:"CC-DIA",
      odo:534900,acq:74000,status:"Ενεργό",kteo:"2026-10-15",ins:"2026-12-05"},
     {id:"V-04",plate:"ΙΝΒ-7745",cat:"Ημιφορτηγό",make:"Toyota",model:"Hilux 2.8 D-4D 4x4",year:2021,
-     cc:2755,fuel:"diesel",meter:"km",cons:9.4,capacity:"1 t",cc_id:"CC-LAT",
+     cc:2755,fuel:"diesel",meter:"km",cons:9.4,payload:1,capacity:"1 t",cc_id:"CC-LAT",
      odo:96300,acq:34000,status:"Ενεργό",kteo:"2027-03-11",ins:"2027-03-01"},
     {id:"V-05",plate:"ΙΝΒ-7746",cat:"Ημιφορτηγό",make:"Ford",model:"Ranger 2.0 EcoBlue",year:2019,
-     cc:1996,fuel:"diesel",meter:"km",cons:8.9,capacity:"1 t",cc_id:"CC-ERG",
+     cc:1996,fuel:"diesel",meter:"km",cons:8.9,payload:1,capacity:"1 t",cc_id:"CC-ERG",
      odo:142700,acq:29000,status:"Ενεργό",kteo:"2026-08-28",ins:"2026-11-20"},
     {id:"V-06",plate:"ΙΝΕ-2094",cat:"Επιβατικό",make:"Škoda",model:"Octavia 1.5 TSI",year:2022,
      cc:1498,fuel:"petrol",meter:"km",cons:6.6,capacity:"Πωλήσεις",cc_id:"CC-DIO",
@@ -3202,6 +3202,39 @@ function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){
   return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
 function find(a,k,v){ for(var i=0;i<a.length;i++) if(a[i][k]===v) return a[i]; return null; }
 function m3(b){ return (b.L*b.W*b.H)/1000000; }
+
+/* ================= ΒΑΡΟΣ =================
+   Η πυκνότητα ΥΠΑΡΧΕΙ ΗΔΗ στην καρτέλα κάθε προϊόντος (tech.density,
+   kg/m³). Πέντε υλικά την έχουν μετρημένη· τα υπόλοιπα εφτά έχουν 0,
+   δηλαδή «δεν την ξέρουμε».
+
+   ΚΑΝΟΝΑΣ: όπου λείπει η πυκνότητα ΔΕΝ υποθέτουμε 2.700. Δείχνουμε
+   παύλα και λέμε ποιο υλικό λείπει. Ένα βάρος βγαλμένο από μαντεψιά
+   είναι χειρότερο από κανένα βάρος: πάνω του παραγγέλνεις γερανό. */
+function prodByCode(c){ return find(DATA.products,"code",c); }
+function prodByStone(sc){ return prodByCode("MN-"+sc); }
+function densOfProd(p){ return p&&p.tech ? fnum(p.tech.density) : 0; }
+function densOfCode(c){ return densOfProd(prodByCode(c)); }
+function densOfStone(sc){ return densOfProd(prodByStone(sc)); }
+function densOfSku(sku){ return densOfProd(prodOf(sku)); }
+
+/* kg ανά m² για δεδομένο πάχος σε εκατοστά */
+function kgPerM2(dens,thCm){ return fnum(dens)*fnum(thCm)/100; }
+
+/* Μορφοποίηση: κιλά μέχρι τον τόνο, μετά τόνοι. Ο οδηγός σκέφτεται σε τόνους. */
+function kgFmt(kg){
+  kg=fnum(kg);
+  return kg>=1000 ? num(kg/1000,2)+" t" : num(kg,0)+" kg";
+}
+/* Κελί βάρους που ΞΕΡΕΙ να μη λέει ψέματα */
+function kgCell(kg,dens,what){
+  return fnum(dens)>0 ? kgFmt(kg)
+    : '<span class="csDer" title="Λείπει η πυκνότητα'+(what?" — "+esc(what):"")
+      +'. Συμπληρώνεται στην καρτέλα του προϊόντος, καρτέλα «Τεχνικά».">—</span>';
+}
+function kgBlock(b){ return m3(b)*densOfStone(b.stone); }              /* L,W,H σε cm */
+function kgSlabRec(s){ return (s.L*s.W*fnum(s.th))/1000000*densOfSku(s.sku); }  /* cm */
+function kgSlabDens(s){ return densOfSku(s.sku); }
 /* Αριθμητική θωράκιση. Ένα κενό ή κακογραμμένο πεδίο (π.χ. «9,500» με ελληνικό
    κόμμα) γινόταν NaN και μόλυνε ΟΛΗ την αλυσίδα: μία γραμμή → σύνολο → ποσοστά
    → επιμερισμός → νεκρό σημείο. Εδώ κόβεται στη ρίζα της εμφάνισης. */
@@ -3687,7 +3720,8 @@ function viewBlocks(){
               fdef("s","Κατάσταση",B,function(r){return r.status}) ],
     cols:{ id:function(r){return r.id}, quarry:function(r){return quarryName(r.quarry)},
            stone:function(r){return stoneName(r.stone)}, dim:function(r){return r.L*r.W*r.H},
-           m3:function(r){return m3(r)}, grade:function(r){return r.grade},
+           m3:function(r){return m3(r)}, kg:function(r){return kgBlock(r)},
+           grade:function(r){return r.grade},
            cost:function(r){return r.cost}, unit:function(r){return r.cost/m3(r)},
            status:function(r){return r.status}, age:function(r){return r.date} }
   };
@@ -3697,7 +3731,8 @@ function viewBlocks(){
 
   h+='<div class="tw"><table><thead><tr>'
    +th(T,"id","Κωδικός")+th(T,"quarry","Λατομείο")+th(T,"stone","Πέτρα")
-   +th(T,"dim","Διαστάσεις (cm)","rt")+th(T,"m3","m³","rt")+th(T,"grade","Διαλογή")
+   +th(T,"dim","Διαστάσεις (cm)","rt")+th(T,"m3","m³","rt")+th(T,"kg","Βάρος","rt")
+   +th(T,"grade","Διαλογή")
    +th(T,"cost","Κόστος","rt")+th(T,"unit","€/m³","rt")+th(T,"status","Κατάσταση")
    +th(T,"age","Ηλικία","rt")
    +'</tr></thead><tbody>';
@@ -3706,6 +3741,7 @@ function viewBlocks(){
     h+='<tr><td><span class="id">'+esc(b.id)+'</span>'+(b.note?'<div style="font-size:12px;color:var(--muted)">'+esc(b.note)+'</div>':'')+'</td>'
      +'<td>'+esc(quarryName(b.quarry))+'</td><td>'+esc(stoneName(b.stone))+'</td>'
      +'<td class="rt mono">'+b.L+'×'+b.W+'×'+b.H+'</td><td class="rt mono"><strong>'+num(v,2)+'</strong></td>'
+     +'<td class="rt mono">'+kgCell(kgBlock(b),densOfStone(b.stone),stoneName(b.stone))+'</td>'
      +'<td><span class="pill '+(b.grade==="A"?"ok":b.grade==="B"?"warn":"bad")+'">'+b.grade+'</span></td>'
      +'<td class="rt mono">'+eur(b.cost)+'</td><td class="rt mono">'+eur(b.cost/v)+'</td>'
      +'<td><span class="pill '+st+'">'+esc(b.status)+'</span></td><td class="rt mono">'+daysSince(b.date)+' ημ.</td></tr>';
@@ -5128,6 +5164,21 @@ function prodOf(sku){ for(var i=0;i<DATA.products.length;i++){
   var v=DATA.products[i].variants; for(var j=0;j<v.length;j++) if(v[j].sku===sku) return DATA.products[i]; } return null; }
 function listPrice(base,mk){ return Math.round(base*(1+mk/100)*100)/100; }
 
+/* Βάρος ανά μονάδα πώλησης μιας παραλλαγής.
+   Έχει νόημα μόνο για m². Σε μ.μ. ή τεμ. χρειάζεται το ανάπτυγμα της
+   διατομής, που δεν το ξέρουμε — και δεν το μαντεύουμε. */
+function vKg(prod,v){
+  if(v.unit!=="m²"){
+    return fnum(v.kgUnit)>0
+      ? num(v.kgUnit,1)+' <span style="color:var(--muted);font-size:12px">kg/'+esc(v.unit)+'</span>'
+      : '<span class="csDer" title="Χρεώνεται σε '+esc(v.unit)
+        +'. Δεν υπάρχει εμβαδόν, άρα το βάρος συμπληρώνεται με το χέρι.">—</span>';
+  }
+  var d=densOfProd(prod);
+  if(!(d>0)) return '<span class="csDer" title="Λείπει η πυκνότητα — συμπληρώνεται στα Τεχνικά">—</span>';
+  return num(kgPerM2(d,v.th),0)+' <span style="color:var(--muted);font-size:12px">kg/m²</span>';
+}
+
 function viewProducts(){
   if(PROD) return viewProductCard();
   var P=DATA.products, T="prd";
@@ -5376,13 +5427,17 @@ function viewProductCard(){
   if(PTAB==="Παραλλαγές & τιμές"){
     h+='<p class="sub">Κάθε συνδυασμός μορφής, πάχους και φινιρίσματος έχει δικό του SKU. Αυτός ο κωδικός μπαίνει στην προσφορά, στην παραγγελία και στο τιμολόγιο.</p>';
     if(EDITING){
-      h+='<div class="tw"><table><thead><tr><th>SKU</th><th>Μορφή</th><th class="rt">Πάχος</th><th>Φινίρισμα</th><th>Μονάδα</th><th class="rt">Απόθεμα</th><th>Θέση</th><th class="rt">Τιμή βάσης</th><th></th></tr></thead><tbody>';
+      h+='<div class="tw"><table><thead><tr><th>SKU</th><th>Μορφή</th><th class="rt">Πάχος</th><th>Φινίρισμα</th><th>Μονάδα</th><th class="rt">Βάρος</th><th class="rt">Απόθεμα</th><th>Θέση</th><th class="rt">Τιμή βάσης</th><th></th></tr></thead><tbody>';
       x.variants.forEach(function(v,i){
         h+='<tr><td><input class="f" data-ek="variants.'+i+'.sku" value="'+esc(v.sku)+'"></td>'
          +'<td><input class="f" data-ek="variants.'+i+'.form" value="'+esc(v.form)+'"></td>'
          +'<td><input class="f" type="number" data-ek="variants.'+i+'.th" data-et="n" value="'+v.th+'"></td>'
          +'<td><input class="f" data-ek="variants.'+i+'.fin" value="'+esc(v.fin)+'"></td>'
          +'<td><input class="f" data-ek="variants.'+i+'.unit" value="'+esc(v.unit)+'"></td>'
+         +'<td class="rt mono">'+(v.unit==="m²" ? vKg(x,v)
+             : '<input class="f" type="number" step="0.1" data-ek="variants.'+i+'.kgUnit" data-et="n" '
+               +'value="'+(v.kgUnit==null?"":v.kgUnit)+'" style="width:88px" '
+               +'title="Βάρος ανά '+esc(v.unit)+'. Δεν υπολογίζεται — δεν υπάρχει εμβαδόν σε αυτή τη μονάδα.">')+'</td>'
          +'<td><input class="f" type="number" data-ek="variants.'+i+'.stock" data-et="n" value="'+v.stock+'"></td>'
          +'<td><input class="f" data-ek="variants.'+i+'.loc" value="'+esc(v.loc)+'"></td>'
          +'<td><input class="f" type="number" step="0.01" data-ek="variants.'+i+'.base" data-et="n" value="'+v.base+'"></td>'
@@ -5391,10 +5446,11 @@ function viewProductCard(){
       h+='</tbody></table></div><div style="margin-top:10px"><button class="b ghost sm" onclick="addVariant()">+ Νέα παραλλαγή</button></div>';
     } else {
       h+='<div class="tw"><table><thead><tr><th>SKU</th><th>Μορφή</th><th class="rt">Πάχος</th>'
-       +'<th>Φινίρισμα</th><th class="rt">Απόθεμα</th><th>Θέση</th><th class="rt">Τιμή βάσης</th></tr></thead><tbody>';
+       +'<th>Φινίρισμα</th><th class="rt">Βάρος</th><th class="rt">Απόθεμα</th><th>Θέση</th><th class="rt">Τιμή βάσης</th></tr></thead><tbody>';
       x.variants.forEach(function(v){
         h+='<tr><td><span class="id">'+esc(v.sku)+'</span></td><td>'+esc(v.form)+'</td>'
          +'<td class="rt mono">'+v.th+' cm</td><td>'+esc(v.fin)+'</td>'
+         +'<td class="rt mono">'+vKg(x,v)+'</td>'
          +'<td class="rt mono">'+(v.stock?num(v.stock,0)+" "+esc(v.unit):'<span class="pill warn">κατόπιν παραγγελίας</span>')+'</td>'
          +'<td style="font-size:13px;color:var(--muted)">'+esc(v.loc)+'</td>'
          +'<td class="rt mono"><strong>'+eur2(v.base)+'</strong> <span style="color:var(--muted);font-size:12px">/'+esc(v.unit)+'</span></td></tr>';
@@ -10558,6 +10614,12 @@ GUIDE.test={ t:{el:"Σενάρια δοκιμής",en:"Test scenarios"}, cards:[
               "Τα PDF δεν αποθηκεύονται — καταγράφονται μόνο ως εγγραφή.",
               "Τα καθαρά περιθώρια είναι ενδεικτικά μέχρι να έρθουν τα οικονομικά 2022–2025.",
               "Ο επιμερισμός παγίων υπάρχει, αλλά η παραγωγή αναφοράς 3.500 m²/μήνα είναι εκτίμηση.",
+              "Επτά υλικά δεν έχουν πυκνότητα, άρα δεν βγάζουν βάρος. Τα νούμερα είναι στα δελτία των προμηθευτών.",
+              "Τα SKU σε τρέχον μέτρο (σκάλες) θέλουν βάρος ανά μονάδα — δεν υπολογίζεται από εμβαδόν.",
+              "Η βελτιστοποίηση κοπής υπάρχει ως ΞΕΧΩΡΙΣΤΟ πρόχειρο, εκτός εφαρμογής. Δεν έχει ενωθεί ακόμα.",
+              "Η αλυσίδα όγκος → βαθμολόγηση πλάκας → αποθήκη είναι κι αυτή ξεχωριστό πρόχειρο.",
+              "Καμία πλάκα δεν φεύγει από το απόθεμα όταν κοπεί — ο κύκλος δεν κλείνει ακόμα.",
+              "Τα ρετάλια υπολογίζονται και ζωγραφίζονται, αλλά δεν αποκτούν κωδικό και θέση.",
               "Τρία προϊόντα δεν έχουν φωτογραφίες: Titanium Grey, Zafir Gold, Δεματίου.",
               "Όλα τα δεδομένα είναι δοκιμαστικά και ζουν στον browser σας."],
           en:["The login is cosmetic — it protects nothing.",
@@ -10856,6 +10918,137 @@ GUIDE.test.cards.splice(2,0,{ic:"🔑", t:{el:"Δοκιμή 3 — Ποιος β�
   go:"goSec('admin','Χρήστες')"});
 
 /* Ενημέρωση «τι δεν κάνει ακόμα» */
+/* ============================================================
+   ΣΥΜΠΛΗΡΩΜΑΤΑ ΟΔΗΓΟΥ — ό,τι χτίστηκε και δεν είχε καταγραφεί.
+   Κάθε κάρτα λέει ΤΙ βλέπεις, ΤΙ κάνει, ΒΗΜΑΤΑ, ΑΠΟΤΕΛΕΣΜΑ.
+   ============================================================ */
+
+/* ---- ΒΑΡΟΣ: η αλυσίδα από την πυκνότητα ως το δρομολόγιο ---- */
+GUIDE.prod.cards.push({ic:"⚖️", t:{el:"Το βάρος — από την πυκνότητα ως το δρομολόγιο",
+                                   en:"Weight — from density to the delivery run"},
+ see:{el:"Στήλη «Βάρος» στους όγκους, στις πλάκες, στα δελτία και στις παραλλαγές προϊόντος. Στην κάρτα του δελτίου, σύνολο βάρους, δρομολόγια και το βαρύτερο μεμονωμένο κομμάτι.",
+      en:"A «Weight» column on blocks, slabs, order sheets and product variants. On the sheet card: total weight, delivery runs and the heaviest single piece."},
+ does:{el:"Το βάρος ΔΕΝ καταχωρείται πουθενά — υπολογίζεται. Πυκνότητα (kg/m³) × πάχος = κιλά ανά m². Το m² το ξέρει ήδη κάθε γραμμή, άρα βγαίνει μόνο του. Όπου δεν υπάρχει εμβαδόν — τρέχον μέτρο, τεμάχιο, ζεύγος — δεν υπάρχει τρόπος να υπολογιστεί, οπότε ζητάμε ένα νούμερο: κιλά ανά μονάδα.",
+       en:"Weight is never typed in — it is computed. Density (kg/m³) × thickness = kilos per m². Every line already knows its m², so the weight follows. Where there is no area — running metre, piece, pair — it cannot be computed, so we ask for one number: kilos per unit."},
+ steps:{el:["ΔΙΑΧΕΙΡΙΣΗ → Προϊόντα → ανοίξτε ένα προϊόν → καρτέλα «Τεχνικά». Εκεί ζει η πυκνότητα.",
+            "Καρτέλα «Παραλλαγές & τιμές»: κάθε SKU σε m² δείχνει κιλά ανά m². Ένα 2 εκ. Titanium Grey βγάζει 54 kg/m².",
+            "Τα SKU σε μ.μ. (σκάλες) έχουν ΚΕΝΟ πεδίο «kg/μ.μ.» — συμπληρώνεται με το χέρι, μια φορά.",
+            "ΛΑΤΟΜΕΙΟ → Μητρώο όγκων: στήλη «Βάρος». Ένας όγκος 2,80×1,60×1,50 μ. βγάζει 18 τόνους.",
+            "ΠΑΡΑΓΩΓΗ → Μητρώο πλακών: βάρος ανά πλάκα, και συνολικό απόθεμα σε τόνους πάνω.",
+            "ΠΑΡΑΓΩΓΗ → Δελτία παραγγελίας → ανοίξτε δελτίο: κάτω από τις γραμμές, «Βάρος δελτίου» και «Δρομολόγια».",
+            "Στο ίδιο πλαίσιο: «Αν έρθει ο πελάτης να τα παραλάβει» με το βαρύτερο κομμάτι και τι χρειάζεται για να σηκωθεί."],
+        en:["ADMIN → Products → open a product → «Technical» tab. Density lives there.",
+            "«Variants & prices» tab: every m² SKU shows kilos per m². Titanium Grey 2 cm gives 54 kg/m².",
+            "Running-metre SKUs (stairs) have an EMPTY «kg/lm» field — filled in by hand, once.",
+            "QUARRY → Block register: a «Weight» column. A 2.80×1.60×1.50 m block comes to 18 tonnes.",
+            "PRODUCTION → Slab register: weight per slab, plus total stock in tonnes at the top.",
+            "PRODUCTION → Order sheets → open a sheet: below the lines, «Sheet weight» and «Delivery runs».",
+            "In the same panel: «If the customer collects» with the heaviest piece and what it takes to lift it."]},
+ res:{el:"Το σύνολο λέει πόσα δρομολόγια χρειάζονται. Το βαρύτερο κομμάτι λέει αν σηκώνεται με τα χέρια — το σύνολο μοιράζεται, το κομμάτι όχι. Όρια: ως 25 κιλά ένας άνθρωπος, ως 50 δύο, ως 150 καροτσάκι, πάνω από αυτό μηχάνημα.",
+      en:"The total tells you how many runs. The heaviest piece tells you whether it can be lifted by hand — a total splits, a single piece does not. Limits: up to 25 kg one person, up to 50 two, up to 150 a trolley, above that machinery."}});
+
+/* ---- ΟΠΟΥ ΔΕΝ ΞΕΡΟΥΜΕ, ΛΕΜΕ ΠΑΥΛΑ ---- */
+GUIDE.prod.cards.push({ic:"—", t:{el:"Γιατί κάποια βάρη δείχνουν παύλα",
+                                  en:"Why some weights show a dash"},
+ see:{el:"Σε επτά υλικά η στήλη «Βάρος» δείχνει «—» αντί για νούμερο. Στο δελτίο μπορεί να εμφανιστεί κίτρινη προειδοποίηση «Το βάρος είναι ελλιπές».",
+      en:"On seven materials the «Weight» column shows «—» instead of a number. The sheet may show a yellow warning: «The weight is incomplete»."},
+ does:{el:"Πέντε υλικά έχουν μετρημένη πυκνότητα από τα δελτία τους. Τα επτά εισαγόμενα δεν την έχουν. ΔΕΝ βάζουμε 2.700 «γιατί έτσι είναι το μάρμαρο» — πάνω σε ένα βάρος παραγγέλνετε γερανό και κλείνετε φορτηγό. Ένα νούμερο από μαντεψιά είναι χειρότερο από κανένα νούμερο.",
+       en:"Five materials have a measured density from their datasheets. The seven imported ones do not. We do NOT fill in 2,700 «because that is what marble weighs» — you order a crane and book a lorry against that number. A guessed figure is worse than none."},
+ steps:{el:["Υλικά που ΕΧΟΥΝ πυκνότητα: Titanium Grey 2680, Zafir Gold 2620, Δεματίου 2650, Pietra Grey 2700, Θάσου Λευκό 2840.",
+            "Υλικά που ΔΕΝ έχουν: Sinai, Oasis Τήνου, Belvedere, Grey Lava, Era Silver, Rosso Levanto, Μπορντώ.",
+            "Για να συμπληρωθεί: ΔΙΑΧΕΙΡΙΣΗ → Προϊόντα → το υλικό → Τεχνικά → «✎ Επεξεργασία» → πεδίο πυκνότητας.",
+            "Τα νούμερα υπάρχουν στα δελτία των προμηθευτών.",
+            "Μόλις μπει η πυκνότητα, όλες οι στήλες γεμίζουν μόνες τους — όγκοι, πλάκες, δελτία, προσφορές."],
+        en:["Materials WITH density: Titanium Grey 2680, Zafir Gold 2620, Dematiou 2650, Pietra Grey 2700, Thassos White 2840.",
+            "Materials WITHOUT: Sinai, Oasis Tinos, Belvedere, Grey Lava, Era Silver, Rosso Levanto, Bordeaux.",
+            "To fill it in: ADMIN → Products → the material → Technical → «✎ Edit» → density field.",
+            "The figures are on the suppliers' datasheets.",
+            "Once density is in, every column fills itself — blocks, slabs, sheets, quotes."]},
+ res:{el:"Επτά αριθμοί, μία φορά. Μέχρι τότε το σύστημα λέει καθαρά τι δεν ξέρει αντί να το κρύψει.",
+      en:"Seven numbers, once. Until then the system says plainly what it does not know instead of hiding it."}});
+
+/* ---- ΟΙΚΟΝΟΜΙΚΗ ΕΠΙΣΚΟΠΗΣΗ ---- */
+GUIDE.fin.cards.unshift({ic:"📊", t:{el:"Οικονομική επισκόπηση — τι αλλάζει και τι όχι",
+                                     en:"Financial overview — what is editable and what is not"},
+ see:{el:"Έξι πλαίσια πάνω, πίνακας παγίων μηνιαίων κοστών, επιμερισμός και νεκρό σημείο. Κουμπί «✎ Επεξεργασία» στην κορυφή.",
+      en:"Six boxes at the top, a table of fixed monthly costs, allocation and break-even. An «✎ Edit» button at the top."},
+ does:{el:"Τρία επίπεδα με διαφορετική μεταχείριση. Τα έξι πλαίσια πάνω βγαίνουν από τα τιμολόγια και ΔΕΝ γράφονται εδώ — αλλιώς ο πίνακας θα έλεγε άλλα από το κύκλωμα. Μισθοδοσία, μισθώματα και αποσβέσεις υπολογίζονται αλλά δέχονται χειροκίνητη παράκαμψη. Τα υπόλοιπα γράφονται ελεύθερα.",
+       en:"Three levels, treated differently. The six top boxes come from the invoices and are NOT written here — otherwise the panel would contradict the ledger. Payroll, rents and depreciation are computed but accept a manual override. The rest is written freely."},
+ steps:{el:["ΛΟΓΙΣΤΗΡΙΟ → Οικονομική επισκόπηση → «✎ Επεξεργασία».",
+            "Ενέργεια, διοικητικά, χρηματοοικονομικά: γράψτε απευθείας.",
+            "Μισθοδοσία, μισθώματα, αποσβέσεις: γράψτε δικό σας νούμερο· ο αυτόματος υπολογισμός φαίνεται δίπλα ως υπόδειξη.",
+            "Το ↺ δίπλα σε παρακαμμένη γραμμή γυρνάει στον αυτόματο υπολογισμό. Κενό πεδίο = αυτόματο.",
+            "«+ Νέα κατηγορία παγίου» για ό,τι λείπει — λογιστήριο, νομικά, οτιδήποτε.",
+            "Παραγωγή αναφοράς, έτη απόσβεσης και δηλωμένο εύρος αλλάζουν από τα ίδια πλαίσια."],
+        en:["ACCOUNTING → Financial overview → «✎ Edit».",
+            "Energy, admin, financial costs: type directly.",
+            "Payroll, rents, depreciation: type your own figure; the computed value shows beside it as a hint.",
+            "The ↺ next to an overridden line returns it to the computed value. Empty field = automatic.",
+            "«+ New fixed cost category» for whatever is missing — accountancy, legal, anything.",
+            "Reference production, depreciation years and the declared range change from the same panels."]},
+ res:{el:"Η παραγωγή αναφοράς είναι ο παρονομαστής του επιμερισμού: μικρότερος αριθμός σημαίνει μεγαλύτερο κόστος ανά m² σε ΚΑΘΕ προσφορά. Άλλαξέ την και δες τα περιθώρια να κινούνται.",
+      en:"Reference production is the denominator of the allocation: a smaller number means a higher cost per m² on EVERY quote. Change it and watch the margins move."}});
+
+/* ---- ΤΡΟΠΟΙ ΠΛΗΡΩΜΗΣ ---- */
+GUIDE.fin.cards.push({ic:"💳", t:{el:"Τρόποι πληρωμής — μετονομασία με διάδοση",
+                                  en:"Payment methods — renaming that propagates"},
+ see:{el:"ΛΟΓΙΣΤΗΡΙΟ → Παράμετροι λογιστηρίου → πίνακας «Τρόποι πληρωμής», με ✎ και × σε κάθε γραμμή και στήλες χρήσης σε πελάτες και προμηθευτές.",
+      en:"ACCOUNTING → Accounting parameters → the «Payment methods» table, with ✎ and × on each row and usage columns for customers and suppliers."},
+ does:{el:"Ο τρόπος πληρωμής ΔΕΝ είναι κλειδί — αποθηκεύεται ως σκέτο κείμενο πάνω σε κάθε καρτέλα. Αν άλλαζε μόνο η λίστα, οι καρτέλες θα έμεναν με την παλιά ονομασία και θα έβγαιναν αθόρυβα εκτός: η στήλη «Χρήση» θα έδειχνε «—» ενώ ο πελάτης θα πλήρωνε ακριβώς έτσι. Γι' αυτό η μετονομασία περνάει στην ίδια κίνηση και στις καρτέλες.",
+       en:"A payment method is NOT a key — it is stored as plain text on every card. If only the list changed, the cards would keep the old wording and drop out silently: the «Usage» column would read «—» while the customer still paid exactly that way. So renaming propagates to the cards in the same move."},
+ steps:{el:["Πατήστε ✎ σε μια γραμμή — γίνεται πεδίο.",
+            "Το μήνυμα κάτω λέει σε πόσες καρτέλες θα περάσει η αλλαγή.",
+            "Enter αποθηκεύει, Esc ακυρώνει. Κενή ή διπλή ονομασία απορρίπτεται.",
+            "Τα ήδη εκδομένα δελτία και προσφορές ΔΕΝ αλλάζουν — τυπώθηκαν με τη διατύπωση της στιγμής τους.",
+            "Κάτω από τον πίνακα: ονομασίες που κυκλοφορούν σε καρτέλες αλλά λείπουν από τη λίστα, με κουμπί «+ Στη λίστα»."],
+        en:["Press ✎ on a row — it becomes a field.",
+            "The note below says how many cards the change will reach.",
+            "Enter saves, Esc cancels. Empty or duplicate names are refused.",
+            "Already issued sheets and quotes do NOT change — they were printed with the wording of their moment.",
+            "Below the table: names in use on cards but missing from the list, with a «+ Add to list» button."]},
+ res:{el:"Καμία καρτέλα δεν μένει ορφανή μετά από μετονομασία, και βλέπετε ποιοι όροι γράφτηκαν ελεύθερα και δεν υπάρχουν στη λίστα.",
+      en:"No card is orphaned by a rename, and you can see which terms were typed freely and are missing from the list."}});
+
+/* ---- ΤΑΜΠΕΛΑΚΙΑ & QR ---- */
+GUIDE.admin.cards.push({ic:"🔲", t:{el:"Ταμπελάκια και QR — η ταυτότητα του κομματιού",
+                                    en:"Labels and QR — the piece's identity"},
+ see:{el:"Στην κορυφή κάθε δελτίου, κουμπιά εκτύπωσης ταμπελακιών σε τρία μεγέθη. Κάθε ταμπελάκι φέρει κωδικό QR.",
+      en:"At the top of every order sheet, label printing buttons in three sizes. Each label carries a QR code."},
+ does:{el:"Ένα ταμπελάκι ΑΝΑ ΓΡΑΜΜΗ, όχι ένα ανά δελτίο. Κάθε κομμάτι φεύγει από το εργοστάσιο με τη δική του ταυτότητα: δελτίο, πελάτης, παραπομπή πελάτη, υλικό, διαστάσεις. Ο κωδικός QR φτιάχνεται μέσα στην εφαρμογή, χωρίς εξωτερική βιβλιοθήκη και χωρίς σύνδεση.",
+       en:"One label PER LINE, not one per sheet. Every piece leaves the factory with its own identity: sheet, customer, customer reference, material, dimensions. The QR code is generated inside the app, with no external library and no connection."},
+ steps:{el:["Ανοίξτε ένα δελτίο με γραμμές.",
+            "Πάνω δεξιά, διαλέξτε μέγεθος ταμπελακιού.",
+            "Βγαίνει ένα ταμπελάκι για κάθε γραμμή, με τη δική της παραπομπή πελάτη.",
+            "Το QR σαρώνεται με το κινητό στη μάντρα."],
+        en:["Open a sheet with lines.",
+            "Top right, choose a label size.",
+            "One label per line comes out, each with its own customer reference.",
+            "The QR is scanned with a phone in the yard."]},
+ res:{el:"Στο εργοτάξιο κανείς δεν ψάχνει ποιο κομμάτι είναι ποιο. Η παραπομπή πελάτη είναι ο κωδικός ΤΟΥ πελάτη από τη δική του ζήτηση προσφοράς — όχι ο δικός μας.",
+      en:"On site nobody hunts for which piece is which. The customer reference is the CUSTOMER's article code from their own request — not ours."}});
+
+/* ---- ΦΥΛΛΟ ΕΛΕΓΧΟΥ ---- */
+GUIDE.test.cards.unshift({ic:"📝", t:{el:"Το φύλλο ελέγχου — πώς μας στέλνετε τα ευρήματα",
+                                      en:"The test sheet — how you send us your findings"},
+ see:{el:"Κουμπί «Φύλλο ελέγχου» στην πάνω μπάρα. Ανοίγει σε δεύτερη καρτέλα, με 51 βήματα σε 12 ενότητες.",
+      en:"A «Test sheet» button in the top bar. It opens in a second tab, with 51 steps across 12 sections."},
+ does:{el:"Κάθε βήμα λέει τι να κάνετε, με μαύρο κουμπί «▶ Άνοιγμα» που πηγαίνει την εφαρμογή ακριβώς στο σημείο. Απαντάτε, κολλάτε φωτογραφία οθόνης, γράφετε σχόλιο.",
+       en:"Each step says what to do, with a black «▶ Open» button that takes the app exactly to the right place. You answer, paste a screenshot, write a comment."},
+ steps:{el:["Πατήστε «Φύλλο ελέγχου» — η εφαρμογή και το φύλλο κρατούν πάντα δύο καρτέλες, όχι περισσότερες.",
+            "Γράψτε το όνομά σας πάνω-πάνω.",
+            "Για φωτογραφία: Win + Shift + S, επιλέξτε περιοχή, Ctrl + V μέσα στο βήμα.",
+            "ΠΡΟΣΟΧΗ: το «Αποθήκευση» γράφει ΜΟΝΟ στη συσκευή σας. Δεν το βλέπει κανείς άλλος.",
+            "Όταν τελειώσετε, «Ολοκλήρωση» — βγαίνει αρχείο. ΣΤΕΙΛΤΕ ΤΟ ΜΑΣ.",
+            "Ίδιος browser, ίδιο link, όχι ανώνυμη περιήγηση — αλλιώς θα βρείτε άδειο φύλλο."],
+        en:["Press «Test sheet» — the app and the sheet always keep exactly two tabs, no more.",
+            "Write your name at the top.",
+            "For a screenshot: Win + Shift + S, select the area, Ctrl + V inside the step.",
+            "IMPORTANT: «Save» writes ONLY to your device. Nobody else can see it.",
+            "When done, «Finish» — a file is produced. SEND IT TO US.",
+            "Same browser, same link, not private browsing — otherwise you will find an empty sheet."]},
+ res:{el:"Το «δεν μου αρέσει» είναι πιο χρήσιμο από το «ωραίο». Στείλτε το αρχείο κάθε 15 βήματα, όχι μόνο στο τέλος.",
+      en:"«I don't like it» is more useful than «nice». Send the file every 15 steps, not only at the end."}});
+
 GUIDE.test.cards[GUIDE.test.cards.length-1].steps={
  el:["Η είσοδος είναι διακοσμητική — δεν προστατεύει δεδομένα.",
      "Τα δικαιώματα ελέγχουν τι εμφανίζεται, ΟΧΙ τι επιτρέπεται από server. Στη Φάση 4 ελέγχεται κάθε κλήση.",
@@ -10863,6 +11056,13 @@ GUIDE.test.cards[GUIDE.test.cards.length-1].steps={
      "Τα PDF δεν αποθηκεύονται — καταγράφονται μόνο ως εγγραφή.",
      "Η παραγωγή αναφοράς 3.500 m²/μήνα για τον επιμερισμό είναι εκτίμηση — το μέσο του εύρους που δηλώσατε (Γ1).",
      "Τα καθαρά περιθώρια είναι ενδεικτικά μέχρι να έρθουν τα οικονομικά 2022–2025.",
+     "Επτά υλικά δεν έχουν πυκνότητα, άρα δεν βγάζουν βάρος. Τα νούμερα είναι στα δελτία των προμηθευτών.",
+     "Τα SKU σε τρέχον μέτρο (σκάλες) θέλουν βάρος ανά μονάδα — δεν υπολογίζεται από εμβαδόν.",
+     "Η φορά των νερών δηλώνεται στην πλάκα αλλά δεν χρησιμοποιείται ακόμα από την εφαρμογή.",
+     "Η βελτιστοποίηση κοπής υπάρχει ως ΞΕΧΩΡΙΣΤΟ πρόχειρο, εκτός εφαρμογής. Δεν έχει ενωθεί.",
+     "Η αλυσίδα όγκος → βαθμολόγηση πλάκας → αποθήκη είναι κι αυτή ξεχωριστό πρόχειρο.",
+     "Καμία πλάκα δεν φεύγει από το απόθεμα όταν κοπεί — ο κύκλος δεν κλείνει ακόμα.",
+     "Τα ρετάλια υπολογίζονται αλλά δεν αποκτούν κωδικό, θέση και φωτογραφία.",
      "Τρία προϊόντα χωρίς φωτογραφίες: Titanium Grey, Zafir Gold, Δεματίου.",
      "Όλα τα δεδομένα είναι δοκιμαστικά και ζουν στον browser σας. Το ↺ τα επαναφέρει."],
  en:["The login is cosmetic — it protects nothing.",
@@ -10871,6 +11071,13 @@ GUIDE.test.cards[GUIDE.test.cards.length-1].steps={
      "PDFs are not stored — only recorded as entries.",
      "The 3,500 m²/month reference output for overhead is an estimate — the midpoint of the range you gave (C1).",
      "Net margins are indicative until the 2022–2025 financials arrive.",
+     "Seven materials have no density, so they produce no weight. The figures are on the suppliers' datasheets.",
+     "Running-metre SKUs (stairs) need a weight per unit — it cannot be derived from area.",
+     "Vein direction is recorded on the slab but is not used by the app yet.",
+     "Cut optimisation exists as a SEPARATE draft, outside the app. It has not been merged.",
+     "The block → slab grading → stock chain is also a separate draft.",
+     "No slab leaves stock when it is cut — the cycle does not close yet.",
+     "Offcuts are calculated but get no code, location or photo.",
      "Three products have no photos: Titanium Grey, Zafir Gold, Dematiou.",
      "All data is demo data living in your browser. ↺ resets it."]};
 
@@ -10964,7 +11171,11 @@ function viewSlabs(){
   if(SLB) return viewSlabCard();
   var S=DATA.slabs, T="slb2";
   var inStock=S.filter(function(s){ return s.status==="Σε απόθεμα"; });
-  var m2=0; inStock.forEach(function(s){ m2+=slabM2(s); });
+  var m2=0, kgTot=0, kgKnown=true;
+  inStock.forEach(function(s){
+    m2+=slabM2(s);
+    if(densOfSku(s.sku)>0) kgTot+=kgSlabRec(s); else kgKnown=false;
+  });
   var bmPairs={}; S.forEach(function(s){ if(s.bm) bmPairs[s.bm]=1; });
   var rem=S.filter(function(s){ return s.status==="Ρετάλι"; });
 
@@ -10972,6 +11183,8 @@ function viewSlabs(){
   h+='<div class="kg">';
   h+=kb("Πλάκες σε μητρώο",S.length,inStock.length+" σε απόθεμα");
   h+=kb("Τετραγωνικά",num(m2,1)+" m²","διαθέσιμα");
+  h+=kb("Βάρος αποθέματος",kgFmt(kgTot),
+        kgKnown?"σε απόθεμα":"χωρίς όσα δεν έχουν πυκνότητα", !kgKnown);
   h+=kb("Ζεύγη book-match",Object.keys(bmPairs).length,"καθρεφτικό σχέδιο");
   h+=kb("Ρετάλια",rem.length,rem.length?"σε ξεχωριστή θέση":"κανένα",rem.length>0);
   h+='</div>';
@@ -10986,7 +11199,8 @@ function viewSlabs(){
               fdef("loc","Θέση",S,function(r){return r.loc}) ],
     cols:{ id:function(r){return r.id}, block:function(r){return r.block}, no:function(r){return r.no},
            prod:function(r){return (find(DATA.products,"code",r.prod)||{}).name},
-           dim:function(r){return slabM2(r)}, g:function(r){return r.grade},
+           dim:function(r){return slabM2(r)}, kg:function(r){return kgSlabRec(r)},
+           g:function(r){return r.grade},
            st:function(r){return r.status}, loc:function(r){return r.loc} }
   };
   var rows=runTable(T,S,cfg);
@@ -10994,7 +11208,7 @@ function viewSlabs(){
   h+=toolbar(T,cfg.filters,rows.length,S.length,"Αναζήτηση: κωδικός πλάκας, όγκος, SKU…");
   h+='<div class="tw"><table><thead><tr>'
    +th(T,"id","Πλάκα")+th(T,"block","Γονικός όγκος")+th(T,"no","Α/Α","rt")
-   +th(T,"prod","Προϊόν")+thx("Διαστάσεις")+th(T,"dim","m²","rt")
+   +th(T,"prod","Προϊόν")+thx("Διαστάσεις")+th(T,"dim","m²","rt")+th(T,"kg","Βάρος","rt")
    +th(T,"g","Διαλογή")+thx("Book-match")+th(T,"loc","Θέση")+th(T,"st","Κατάσταση")
    +'</tr></thead><tbody>';
   rows.forEach(function(s){
@@ -11006,6 +11220,7 @@ function viewSlabs(){
      +'<td>'+esc(p?p.name:"—")+'<div style="font-size:12px;color:var(--muted)">'+s.th+' cm · '+esc(s.fin)+'</div></td>'
      +'<td class="mono" style="font-size:13px">'+s.L+'×'+s.W+' cm</td>'
      +'<td class="rt mono">'+num(slabM2(s),2)+'</td>'
+     +'<td class="rt mono">'+kgCell(kgSlabRec(s),densOfSku(s.sku),p?p.name:"")+'</td>'
      +'<td><span class="pill '+(s.grade==="A"?"ok":s.grade==="B"?"warn":"bad")+'">'+s.grade+'</span></td>'
      +'<td>'+(pm?'<span class="pill a">↔ '+esc(pm.id)+'</span>':'<span style="color:var(--faint)">—</span>')+'</td>'
      +'<td><span class="pill">'+esc(s.loc)+'</span></td>'
@@ -11071,13 +11286,14 @@ function viewSlabCard(){
   if(b){
     h+='<div class="vein"></div><h2 class="sec">Οι αδελφές πλάκες ('+sibs.length+')</h2>';
     h+='<div class="tw"><table><thead><tr><th>Πλάκα</th><th class="rt">Α/Α</th><th>Διαστάσεις</th>'
-     +'<th class="rt">m²</th><th>Διαλογή</th><th>Book-match</th><th>Κατάσταση</th></tr></thead><tbody>';
+     +'<th class="rt">m²</th><th class="rt">Βάρος</th><th>Διαλογή</th><th>Book-match</th><th>Κατάσταση</th></tr></thead><tbody>';
     sibs.slice().sort(function(a,c){ return a.no-c.no; }).forEach(function(x){
       var xp=bmPartner(x);
       h+='<tr'+(x.id===s.id?' style="background:var(--sand-2)"':' style="cursor:pointer" onclick="openSlb(\''+x.id+'\')"')+'>'
        +'<td><span class="id">'+esc(x.id)+'</span>'+(x.id===s.id?' <span class="pill">αυτή</span>':'')+'</td>'
        +'<td class="rt mono">'+x.no+'</td><td class="mono" style="font-size:13px">'+x.L+'×'+x.W+'</td>'
        +'<td class="rt mono">'+num(slabM2(x),2)+'</td>'
+       +'<td class="rt mono">'+kgCell(kgSlabRec(x),densOfSku(x.sku),"")+'</td>'
        +'<td><span class="pill '+(x.grade==="A"?"ok":x.grade==="B"?"warn":"bad")+'">'+x.grade+'</span></td>'
        +'<td style="font-size:13px">'+(xp?'↔ '+esc(xp.id):'—')+'</td>'
        +'<td><span class="pill '+(x.status==="Σε απόθεμα"?"ok":x.status==="Πωλήθηκε"?"":"warn")+'">'+esc(x.status)+'</span></td></tr>';
@@ -13561,7 +13777,7 @@ function viewCutSheets(){
       : '')
    +'</div>';
   h+='<div class="tw"><table><thead><tr><th>Κωδικός</th><th>Πελάτης</th><th>Έργο</th><th>Υλικά</th>'
-   +'<th class="rt">Κομμάτια</th><th class="rt">m²</th><th>Ημ. κοπής</th><th>Κατάσταση</th></tr></thead><tbody>';
+   +'<th class="rt">Κομμάτια</th><th class="rt">m²</th><th class="rt">Βάρος</th><th>Ημ. κοπής</th><th>Κατάσταση</th></tr></thead><tbody>';
   DATA.cutSheets.forEach(function(c){
     var tm=0, tp=0;
     c.pieces.forEach(function(p){ tm+=csSummary(p).m2; });
@@ -13569,9 +13785,13 @@ function viewCutSheets(){
     h+='<tr class="cl" onclick="goCS(\''+c.code+'\')"><td><span class="id">'+esc(c.code)+'</span></td>'
      +'<td>'+esc(custName(c.cust))+'</td><td>'+esc(c.project||"—")+'</td><td>'+esc(csMats(c))+'</td>'
      +'<td class="rt">'+tp+'</td><td class="rt">'+(Math.round(tm*100)/100).toFixed(2).replace(".",",")+'</td>'
+     +'<td class="rt mono">'+(function(){ var K=csSheetKg(c);
+        return K.some ? kgFmt(K.kg)+(K.missing.length?' <span class="pill warn" title="Λείπει πυκνότητα από: '
+                +esc(K.missing.join(", "))+'">μερικό</span>':'')
+                      : '<span class="csDer">—</span>'; })()+'</td>'
      +'<td>'+esc(c.date)+'</td><td><span class="pill'+(c.status==="Κόπηκε"?" ok":"")+'">'+esc(c.status)+'</span></td></tr>';
   });
-  if(!DATA.cutSheets.length) h+='<tr><td colspan="8" style="color:var(--faint)">Κανένα δελτίο ακόμα.</td></tr>';
+  if(!DATA.cutSheets.length) h+='<tr><td colspan="9" style="color:var(--faint)">Κανένα δελτίο ακόμα.</td></tr>';
   h+='</tbody></table></div>';
   if(!DATA.cutSheets.length){
     h+='<div class="card" style="margin-top:16px;padding:18px 20px">'
@@ -13651,7 +13871,8 @@ function csVariants(){
   DATA.products.forEach(function(pr){
     (pr.variants||[]).forEach(function(v){
       out.push({sku:v.sku, prod:pr.name, code:pr.code, form:v.form, th:v.th, fin:v.fin,
-                unit:v.unit, stock:+v.stock||0, loc:v.loc, base:+v.base||0});
+                unit:v.unit, stock:+v.stock||0, loc:v.loc, base:+v.base||0,
+                kgUnit:(v.kgUnit==null||v.kgUnit==="")?null:fnum(v.kgUnit)});
     });
   });
   return out;
@@ -13785,6 +14006,82 @@ function csCloseDraw(){ CSPI=-1; render(); }
    «υλικό €127,30 + κατεργασίες €68,70» με σύνολο «€195,99» —
    ο πελάτης το αθροίζει με το χέρι και βρίσκει διαφορά. */
 function c2(x){ return Math.round((+x||0)*100)/100; }
+/* Βάρος μιας γραμμής δελτίου.
+   Επιστρέφει και το «γιατί όχι», ώστε η οθόνη να μη σιωπά:
+   ok=false σημαίνει ή ελεύθερη γραμμή (υπηρεσία) ή άγνωστη πυκνότητα. */
+function csLineKg(L){
+  /* Ελεύθερη γραμμή: υπηρεσία ή υλικό τρίτου. Βάρος μόνο αν το γράψει
+     ο χρήστης — μια μεταλλική βάση ζυγίζει, μια τοποθέτηση όχι. */
+  if(csIsFree(L)){
+    var kf=fnum(L.kgF);
+    if(kf>0) return {kg:kf*fnum(L.qtyF), ok:true, why:"", each:kf};
+    return {kg:0, ok:false, why:"ελεύθερη γραμμή — συμπληρώστε βάρος αν είναι υλικό"};
+  }
+  var vr=csVar(L.sku);
+  if(!vr) return {kg:0, ok:false, why:"δεν έχει επιλεγεί υλικό"};
+
+  /* Μονάδα m²: το βάρος βγαίνει μόνο του από πυκνότητα × πάχος. */
+  if(vr.unit==="m²"){
+    var d=densOfSku(L.sku);
+    if(!(d>0)) return {kg:0, ok:false, why:"λείπει η πυκνότητα του «"+vr.prod+"»", prod:vr.prod};
+    /* ΠΡΟΣΟΧΗ: το csSummary().m2 ΠΕΡΙΛΑΜΒΑΝΕΙ ήδη τα τεμάχια της γραμμής.
+       Πολλαπλασιασμός με το qty θα διπλομετρούσε — 18 πατήματα έγιναν 324. */
+    var m2 = csLineQty(L);
+    var pcs = csLinePcs(L)||1;
+    var tot = m2*kgPerM2(d,vr.th);
+    return {kg:tot, ok:true, why:"", each:tot/pcs};
+  }
+  /* Μονάδα μ.μ., τεμ. ή ζεύγος: δεν υπάρχει εμβαδόν. Χρειάζεται το βάρος
+     ανά μονάδα, που το ξέρει ο μαρμαράς — δεν το μαντεύουμε από το όνομα. */
+  if(!(fnum(vr.kgUnit)>0))
+    return {kg:0, ok:false, prodUnit:vr.prod,
+            why:"χρεώνεται σε "+vr.unit+" — συμπληρώστε βάρος ανά "+vr.unit+" στην καρτέλα του προϊόντος"};
+  var q=csLineQty(L), pc=csLinePcs(L)||1;
+  return {kg:fnum(vr.kgUnit)*q, ok:true, why:"", each:fnum(vr.kgUnit)*q/pc};
+}
+
+/* ---- ΤΟ ΒΑΡΥΤΕΡΟ ΜΕΜΟΝΩΜΕΝΟ ΚΟΜΜΑΤΙ ----
+   Το σύνολο λέει πόσα δρομολόγια. ΑΥΤΟ λέει αν σηκώνεται με τα χέρια.
+   Κομμάτι 260 κιλών δεν μπαίνει σε αυτοκίνητο, όσο μικρό κι αν είναι
+   το σύνολο της παραγγελίας. */
+function csHeaviest(cs){
+  var best=null;
+  (cs.pieces||[]).forEach(function(L){
+    var r=csLineKg(L);
+    if(!r.ok || !(r.each>0)) return;
+    if(!best || r.each>best.kg)
+      best={kg:r.each, name:L.name||(csVar(L.sku)||{}).prod||"γραμμή"};
+  });
+  return best;
+}
+/* Πρακτική οδηγία παραλαβής. Εργονομικά όρια, όχι νομικά. */
+function csLiftNote(kg){
+  kg=fnum(kg);
+  if(kg<=0) return "";
+  if(kg<=25) return "σηκώνεται από έναν άνθρωπο";
+  if(kg<=50) return "θέλει δύο άτομα";
+  if(kg<=150) return "θέλει καροτσάκι ή τρεις-τέσσερις ανθρώπους";
+  return "θέλει μηχανικό μέσο — δεν σηκώνεται με τα χέρια";
+}
+function csSheetKg(cs){
+  var kg=0, miss={}, some=false;
+  (cs.pieces||[]).forEach(function(L){
+    var r=csLineKg(L);
+    if(r.ok){ kg+=r.kg; some=true; }
+    else if(r.prod) miss[r.prod]=1;
+  });
+  return {kg:kg, some:some, missing:Object.keys(miss)};
+}
+/* Πόσα δρομολόγια θέλει· το μεγαλύτερο ενεργό όχημα καθορίζει */
+function maxPayloadKg(){
+  var m=0;
+  (DATA.vehicles||[]).forEach(function(v){
+    if(v.status!=="Ενεργό") return;
+    var t=fnum(v.payload); if(t>m) m=t;
+  });
+  return m*1000;
+}
+
 function csLineCost(L){
   var matCost=0, procCost=0, q=csLineQty(L);
   if(csIsFree(L)) matCost = q*(+L.priceF||0);
@@ -13947,7 +14244,8 @@ function viewCutSheetCard(){
        +'</select></td>'
        +'<td class="rt"><input type="number" min="0" step="0.01" value="'+(L.qtyF||0)+'" oninput="csLineSet('+i+',\'qtyF\',this.value)" style="width:78px"></td>'
        +'<td class="rt lnQ" id="lnQ'+i+'"><b>'+num(q,3)+'</b> '+esc(u)+'</td>'
-       +'<td class="rt"><input type="number" min="0" step="0.01" value="'+(L.priceF||0)+'" oninput="csLineSet('+i+',\'priceF\',this.value)" style="width:86px"></td>';
+       +'<td class="rt"><input type="number" min="0" step="0.01" value="'+(L.priceF||0)+'" oninput="csLineSet('+i+',\'priceF\',this.value)" style="width:86px"></td>'
+       +'<div><input type="number" min="0" step="0.1" value="'+(L.kgF==null?"":L.kgF)+'" oninput="csLineSet('+i+',\'kgF\',this.value)" style="width:86px;margin-top:3px" placeholder="kg/μον." title="Βάρος ανά μονάδα σε κιλά. Κενό αν είναι υπηρεσία."></div></td>';
     } else {
       var isMM = vr && vr.unit==="μ.μ.";
       h+='<td class="rt">'+(sh?'<span class="csDer">σχέδιο</span>'
@@ -13968,7 +14266,10 @@ function viewCutSheetCard(){
        :'<label class="lnSw"><input type="checkbox"'+(sh?" checked":"")
         +' onchange="csLineSet('+i+',\'shaped\',this.checked)"><span></span></label>'
         +(sh?'<div><button class="b ghost sm" style="margin-top:4px" onclick="csDraw4('+i+')">Σχεδίαση</button></div>':''))+'</td>';
+    var kgr=csLineKg(L);
     h+='<td class="rt" id="lnM'+i+'"><b>'+eur2(c.tot)+'</b>'
+     +(kgr.ok?'<div class="cq-dim">'+kgFmt(kgr.kg)+'</div>'
+             :'<div class="cq-dim" title="'+esc(kgr.why)+'">— kg</div>')
      +(c.disc>0?'<div class="cq-dim">−'+eur2(c.disc)+'</div>':'')
      +(c.proc>0?'<div class="cq-dim">υλ. '+eur2(c.mat)+' + κατ. '+eur2(c.proc)+'</div>':'')+'</td>';
     h+='<td><button class="csX" onclick="csLineDel('+i+')">×</button></td></tr>';
@@ -13983,6 +14284,40 @@ function viewCutSheetCard(){
   });
   if(!cs.pieces.length) h+='<tr><td colspan="13" style="color:var(--faint)">Καμία γραμμή ακόμα.</td></tr>';
   h+='</tbody></table></div>';
+  /* ---- ΒΑΡΟΣ ΔΕΛΤΙΟΥ ----
+     Δεν είναι στολίδι: καθορίζει ποιο όχημα φεύγει και πόσα δρομολόγια.
+     Αν λείπει πυκνότητα, το λέμε ονομαστικά αντί να βγάλουμε μικρότερο νούμερο. */
+  var KG=csSheetKg(cs), PAY=maxPayloadKg();
+  if(cs.pieces.length){
+    h+='<div class="card" style="margin-top:12px"><div style="display:flex;gap:22px;flex-wrap:wrap;align-items:baseline">'
+     +'<div><span style="font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)">Βάρος δελτίου</span>'
+     +'<div style="font-size:24px;font-weight:700">'+(KG.some?kgFmt(KG.kg):'—')+'</div></div>';
+    if(KG.some&&PAY>0){
+      var trips=Math.ceil(KG.kg/PAY);
+      h+='<div><span style="font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)">Δρομολόγια</span>'
+       +'<div style="font-size:24px;font-weight:700">'+trips+'</div></div>'
+       +'<div style="color:var(--muted);font-size:13px;flex:1 1 240px">Με το μεγαλύτερο ενεργό όχημα ('
+       +num(PAY/1000,0)+' t ωφέλιμο). Το ξάκρισμα και τα καβαλέτα δεν υπολογίζονται.</div>';
+    }
+    h+='</div>';
+    var HV=csHeaviest(cs);
+    if(HV){
+      h+='<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line-2)">'
+       +'<div style="font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)">'
+       +'Αν έρθει ο πελάτης να τα παραλάβει</div>'
+       +'<div style="margin-top:4px;font-size:14px">Το βαρύτερο κομμάτι είναι το <strong>'
+       +esc(HV.name)+'</strong>, <strong>'+kgFmt(HV.kg)+'</strong> — '+esc(csLiftNote(HV.kg))+'.'
+       +(KG.some?(KG.kg>500?' Συνολικά '+kgFmt(KG.kg)+' — δεν μεταφέρονται με επιβατικό.'
+                          :' Συνολικά '+kgFmt(KG.kg)+'.'):'')
+       +'</div></div>';
+    }
+    if(KG.missing.length)
+      h+='<div style="margin-top:10px;background:#FDF3DE;border:1px solid #E4CD97;border-radius:var(--r);'
+       +'padding:8px 12px;font-size:13px;color:#6b4c08">⚠ Το βάρος είναι ελλιπές: λείπει η πυκνότητα από '
+       +KG.missing.map(function(m){return '<strong>'+esc(m)+'</strong>';}).join(", ")
+       +'. Συμπληρώνεται στην καρτέλα του προϊόντος → Τεχνικά.</div>';
+    h+='</div>';
+  }
   h+='<div class="csBtns"><button class="b" onclick="csLineAdd()">+ Γραμμή από αποθήκη</button>'
    +'<select class="lnAdd" onchange="if(this.value!==\'\'){csFreeAdd(+this.value);this.value=\'\';}">'
    +'<option value="">+ Υπηρεσία / ελεύθερη γραμμή…</option>'
@@ -14140,6 +14475,10 @@ var CQL={
  pcs:        {el:"Τμχ",                 en:"Qty"},
  dims:       {el:"Διαστάσεις",          en:"Dimensions"},
  quantity:   {el:"Ποσότητα",            en:"Quantity"},
+ weight:     {el:"Βάρος",                en:"Weight"},
+ heaviest:   {el:"Βαρύτερο κομμάτι",     en:"Heaviest piece"},
+ weightNote: {el:"Ενδεικτικό βάρος υλικού, χωρίς συσκευασία και καβαλέτα.",
+              en:"Indicative material weight, excluding packing and A-frames."},
  unitPrice:  {el:"Τιμή μον.",           en:"Unit price"},
  amount:     {el:"Αξία",                en:"Amount"},
  discount:   {el:"Έκπτωση",             en:"Discount"},
@@ -14808,6 +15147,12 @@ function cqPrint(code,lang){
    +(T.discLine>0?'<div class="cq-r"><span>'+esc(cqT("discLine"))+'</span><b>−'+eur2(T.discLine)+'</b></div>':'')
    +(T.discAll>0?'<div class="cq-r"><span>'+esc(cqT("discAll"))+' '+num(T.discAllPct,1)+'%</span><b>−'+eur2(T.discAll)+'</b></div>':'')
    +'<div class="cq-r"><span>'+esc(cqT("net"))+'</span><b>'+eur2(T.net)+'</b></div>'
+   +(function(){ var K=csSheetKg(cs), H=csHeaviest(cs); var o='';
+       if(K.some) o+='<div class="cq-r"><span>'+esc(cqT("weight"))+'</span><b>'+kgFmt(K.kg)+'</b></div>';
+       /* Ο πελάτης που έρχεται με αυτοκίνητο πρέπει να ξέρει το βαρύτερο
+          κομμάτι, όχι το σύνολο. Το σύνολο μοιράζεται, το κομμάτι όχι. */
+       if(H) o+='<div class="cq-r"><span>'+esc(cqT("heaviest"))+'</span><b>'+kgFmt(H.kg)+'</b></div>';
+       return o; })()
    +'<div class="cq-r"><span>'+esc(cqT("vat"))+' '+CONFIG.vat+'%</span><b>'+eur2(T.vat)+'</b></div>'
    +'<div class="cq-r cq-big"><span>'+esc(cqT("total"))+'</span><b>'+eur2(T.total)+'</b></div>'
    +(T.deposit>0?'<div class="cq-r"><span>'+esc(cqT("deposit"))+'</span><b>−'+eur2(T.deposit)+'</b></div>'
