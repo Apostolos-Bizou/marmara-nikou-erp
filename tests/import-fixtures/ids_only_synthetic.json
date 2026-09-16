@@ -1,0 +1,212 @@
+{
+       "TCustomer": [
+              {
+                     "MainTable": "CUSTOMER",
+                     "KeyField": "ID",
+                     "Caption": "\u0394\u03b9\u03b1\u03c7\u03b5\u03af\u03c1\u03b9\u03c3\u03b7 \u03c0\u03b5\u03bb\u03b1\u03c4\u03ce\u03bd",
+                     "CreateDate": "x",
+                     "Data": [
+                            {
+                                   "ID": 1000,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1001,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1002,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1003,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1004,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1005,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1006,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1007,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1008,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1009,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1010,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1011,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1012,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1013,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1014,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1015,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1016,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1017,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1018,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1019,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1020,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1021,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1022,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1023,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1024,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1025,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1026,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1027,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1028,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1029,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1030,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1031,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1032,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1033,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1034,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1035,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1036,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1037,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1038,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1039,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1040,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1041,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1042,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1043,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1044,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1045,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1046,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1047,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1048,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            },
+                            {
+                                   "ID": 1049,
+                                   "Message": "\u039f\u039b\u039f\u0399"
+                            }
+                     ]
+              }
+       ]
+}
