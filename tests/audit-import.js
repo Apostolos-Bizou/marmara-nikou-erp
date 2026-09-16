@@ -211,7 +211,7 @@ function cardTabs(w, go, setter){
 
   sec("Οδηγός — καρτέλα «Εισαγωγή δεδομένων» (Φ28β)");
   const gi = J(w, "GUIDE.imp && GUIDE.imp.cards");
-  ok(gi && gi.length === 11, "11 κάρτες βημάτων (" + (gi ? gi.length : 0) + ")");
+  ok(gi && gi.length === 12, "12 κάρτες (γρήγορη φόρτωση + 11 βήματα) (" + (gi ? gi.length : 0) + ")");
   const bad2 = [];
   for(const k of Object.keys(J(w, "GUIDE"))){
     const cards = J(w, "GUIDE[" + JSON.stringify(k) + "].cards") || [];
@@ -233,7 +233,7 @@ function cardTabs(w, go, setter){
   let gh = w.document.getElementById("gdBody").innerHTML;
   ok(/class="on"[^>]*>⤓ Εισαγωγή δεδομένων/.test(gh) || /onclick="setGTab\('imp'\)"[^>]*class="on"/.test(gh) || w.document.querySelector("#gdBody .gd-nav button.on").textContent.includes("Εισαγωγή δεδομένων"),
      "η καρτέλα εμφανίζεται στο μενού του οδηγού και είναι επιλεγμένη");
-  ok(w.document.querySelectorAll("#gdBody .gc").length === 11 && gh.includes("Σε μία πρόταση"), "αποδίδονται εισαγωγή + 11 κάρτες");
+  ok(w.document.querySelectorAll("#gdBody .gc").length === 12 && gh.includes("Σε μία πρόταση"), "αποδίδονται εισαγωγή + 12 κάρτες");
   const navTxt = [...w.document.querySelectorAll("#gdBody .gd-nav button")].map(b => b.textContent);
   ok(navTxt.indexOf("⤓ Εισαγωγή δεδομένων") === navTxt.findIndex(t => t.includes("Δελτίο παραγγελίας")) + 1, "η καρτέλα μπαίνει ακριβώς μετά το «Δελτίο παραγγελίας»");
   w.eval("setGLang('en')");
@@ -292,6 +292,128 @@ function cardTabs(w, go, setter){
   ok(J(w, "DATA.products.filter(p=>p.imp).length") === 3 && J(w, "allVariants().filter(x=>x.v.imp).length") === 54, "3 προϊόντα, 54 SKU");
   w.mniRevert("products");
   renderAll(w, "μετά τα δοκιμαστικά αρχεία");
+
+  sec("Excel 97–2003 (.xls) — Φ28γ");
+  ok(J(w, "mniUnit('m²')") === "m²" && J(w, "mniUnit('τ.μ.')") === "m²" && J(w, "mniUnit('Μ2')") === "m²"
+     && J(w, "mniUnit('m³')") === "m³" && J(w, "mniUnit('μ.μ.')") === "μ.μ." && J(w, "mniUnit('ΤΟΝΝΟΙ')") === "τόνοι",
+     "μονάδες: το «m²» δεν γίνεται πια «μ.μ.»");
+  ok(J(w, "mniZip('455.00')") === "45500" && J(w, "mniZip('45.500')") === "45500" && J(w, "mniDate('44558')") === "2021-12-28"
+     && J(w, "mniVat('ΙΤ02720780234')") === "IT02720780234" && J(w, "mniNoVat('123')") && J(w, "mniNoVat('000000000')") && !J(w, "mniNoVat('094009344')"),
+     "Τ.Κ., ημερομηνίες Excel, ξένα ΑΦΜ με ελληνικά γράμματα, σύντομοι αριθμοί");
+  const pd = J(w, "[mniParseDesc('ΔΕΜΑΤΙΟΥ 0,02 ΣΕ Μ2'), mniParseDesc('ROZ PANTHER 0.03 ΣΕ ΜΜ'), mniParseDesc('SAND FLOWER 0.04 & ΑΝΩ ΣΕ ΜΜ'), mniParseDesc('ΔΕΜΑΤΙΟΥ ΣΕ Μ3'), mniParseDesc('ΦΩΤΙΑΣ ΚΟΜΕΝΑ 40_40 2.3 cm'), mniParseDesc('SERENA ΤΥΠ.ΔΕΜΑΤ.0,02')]");
+  ok(pd[0].unit === "m²" && pd[0].th === 2 && pd[0].material === "ΔΕΜΑΤΙΟΥ"
+     && pd[1].unit === "μ.μ." && pd[1].th === 3 && pd[1].material === "ROZ PANTHER"
+     && pd[2].th === 4 && pd[2].thUp && pd[3].unit === "m³" && pd[4].th === 2.3 && pd[5].material === "SERENA ΤΥΠ.ΔΕΜΑΤ",
+     "ανάλυση περιγραφής: μονάδα, πάχος, «& άνω», υλικό → " + JSON.stringify(pd.map(x => [x.unit, x.th, x.material])));
+  ok(J(w, "mniGrpKey('021.0.002')") === "021" && J(w, "mniGrpKey('16.10.079')") === "16.10" && J(w, "mniGrpKey('ΕΙΔ-001')") === "", "κλειδί ομάδας από τον κωδικό");
+  await load(w, "customers_biff8.xls", "customers");
+  ok(!J(w, "MNI.err") && J(w, "MNI.fmt") === "Excel 97–2003 (.xls)" && J(w, "MNI.rows.length") === 1200 && J(w, "MNI.cols.length") === 10 && J(w, "MNI.caption") === "Πελάτες",
+     ".xls διαβάζεται: 1.200 γραμμές × 10 στήλες, φύλλο «Πελάτες»" + (J(w, "MNI.err") ? " → " + J(w, "MNI.err") : ""));
+  ok(J(w, "MNI.rows[1198][2]") === "ΣΥΝΘΕΤΙΚΟΣ ΠΕΛΑΤΗΣ 1199 Ο.Ε. — ΔΟΚΙΜΗ ΜΟΝΑΔΙΚΟΥ ΚΕΙΜΕΝΟΥ 8393" && J(w, "MNI.rows[0][0]") === "1",
+     "ελληνικά από τον πίνακα κοινών κειμένων (με συνέχειες) και αριθμοί σωστά");
+  const xm = J(w, "(function(){var o={};for(var k in MNI.map)o[MNI.cols[k]]=MNI.map[k];return o})()");
+  ok(xm["Κωδικός"] === "ext" && xm["Επωνυμία"] === "name" && xm["ΑΦΜ"] === "vat" && xm["ΤΚ"] === "zip"
+     && xm["Επωνυμία πωλητή"] === "owner" && xm["Ημ/νία καταχώρησης"] === "first" && xm["Ενεργός"] === "status",
+     "αντιστοίχιση: η «Επωνυμία πωλητή» πάει στον πωλητή, όχι στην επωνυμία → " + JSON.stringify(xm));
+  P = J(w, "(function(){var p=mniPlan();return {n:p.recs.length,noVat:p.noVat,bad:p.badVat,inactive:p.inactive,zip:p.recs[2].zip,first:p.recs[0].first,owner:p.recs[1].owner}})()");
+  ok(P.n === 1197 && P.noVat === 152 && P.bad === 0 && P.inactive === 3, "1.197 μπαίνουν · 152 χωρίς ΑΦΜ · 3 ανενεργές → " + JSON.stringify(P));
+  ok(P.zip === "45500" && P.first === "2021-12-29" && P.owner === "ΠΩΛΗΤΗΣ Α", "Τ.Κ. «455.00» → 45500 · ημερομηνία · πωλητής");
+  w.goSec("admin", J(w, "MNI_SEC"));
+  v = w.document.getElementById("view").innerHTML;
+  ok(v.includes("Χωρίς ΑΦΜ") && v.includes("2021-12-29"), "δείκτης «Χωρίς ΑΦΜ» και δείγμα ημερομηνίας ως ημερομηνία");
+  w.mniRun();
+  ok(J(w, "DATA.customers.filter(c=>c.imp).length") === 1197, "1.197 πελάτες από .xls");
+  ok(J(w, "(function(){var c=find(DATA.customers,'id','CL-Κ0002');return c.brand===c.name && !Object.prototype.hasOwnProperty.call(c,'brand') && c.owner==='ΠΩΛΗΤΗΣ Α' && c.first==='2021-12-30'})()"),
+     "διακριτικός τίτλος = επωνυμία χωρίς να αποθηκεύεται δεύτερη φορά · πωλητής · πρώτη επαφή");
+  ok(J(w, "find(DATA.customers,'id','CL-Κ0002').acts[0].txt") === "Από customers_biff8.xls" && !/"acts"/.test(J(w, "JSON.stringify(find(DATA.customers,'id','CL-Κ0003'))")),
+     "ιστορικό «Από customers_biff8.xls» χωρίς αντίγραφο σε κάθε εγγραφή");
+  w.goSec("crm", "Πελάτες");
+  v = w.document.getElementById("view").innerHTML;
+  ok((v.match(/onclick="openCust\(/g) || []).length === 150 && v.includes("Εμφανίζονται 150 από 1.205"), "μεγάλη λίστα: 150 γραμμές + κουμπιά (1.205 = 1.197 + 8)");
+  w.mniAll("cust");
+  ok((w.document.getElementById("view").innerHTML.match(/onclick="openCust\(/g) || []).length === 1205, "«Όλες»: 1.205 γραμμές");
+  w.eval("fstate('cust').q='ΠΕΛΑΤΗΣ 1199'; render()");
+  ok((w.document.getElementById("view").innerHTML.match(/onclick="openCust\(/g) || []).length === 1, "η αναζήτηση βρίσκει εγγραφή πέρα από τις πρώτες 150");
+  w.eval("fstate('cust').q=''; MNI_SHOW={}; render()");
+  w.mniRevert("customers");
+  ok(J(w, "DATA.customers.length") === 8, "επαναφορά μετά το .xls");
+
+  const REAL = path.join(FX, "real");
+  if(fs.existsSync(path.join(REAL, "ΠΕΛΑΤΕΣ.xls"))){
+    sec("Πραγματικά αρχεία του πελάτη (μόνο τοπικά — δεν μπαίνουν στο repo)");
+    const rl = async (f, t) => { w.eval(`MNI.type=${JSON.stringify(t)}; MNI.mode="merge"; MNI.activeOnly=true; MNI.grp="auto"; MNI.skipKinds=true;`);
+                                 await w.mniLoadBytes(f, new Uint8Array(fs.readFileSync(path.join(REAL, f)))); };
+    await rl("ΠΕΛΑΤΕΣ.xls", "customers");
+    P = J(w, "(function(){var p=mniPlan();return {rows:MNI.rows.length,n:p.recs.length,noVat:p.noVat,bad:p.badVat,same:p.sameVat}})()");
+    ok(P.rows === 4375 && P.n === 4373 && P.noVat === 1654 && P.bad === 6 && P.same === 17, "ΠΕΛΑΤΕΣ.xls → " + JSON.stringify(P));
+    w.mniRun();
+    await rl("ΠΡΟΜΗΘΕΥΤΕΣ.xls", "suppliers");
+    P = J(w, "(function(){var p=mniPlan();return {rows:MNI.rows.length,n:p.recs.length}})()");
+    ok(P.rows === 1818 && P.n === 1817, "ΠΡΟΜΗΘΕΥΤΕΣ.xls → " + JSON.stringify(P));
+    w.mniRun();
+    await rl("ΠΡΟΙΟΝΤΑ.xls", "products");
+    P = J(w, "(function(){var p=mniPlan();return {rows:MNI.rows.length,n:p.recs.length,groups:p.groups,mode:p.grpMode,kinds:p.kindSkipped}})()");
+    ok(P.rows === 2655 && P.n === 2466 && P.groups === 371 && P.mode === "code" && P.kinds === 187, "ΠΡΟΙΟΝΤΑ.xls → " + JSON.stringify(P));
+    w.mniRun();
+    const u = J(w, "(function(){var c={};allVariants().forEach(function(x){if(x.v.imp)c[x.v.unit]=(c[x.v.unit]||0)+1});return c})()");
+    ok(u["m²"] === 1085 && u["μ.μ."] === 797 && u["m³"] === 104, "μονάδες ειδών: " + JSON.stringify(u));
+    ok(J(w, "find(DATA.products,'code','PX-021').name") === "ΔΕΜΑΤΙΟΥ", "PX-021 = ΔΕΜΑΤΙΟΥ");
+    const size = J(w, "(localStorage.getItem(STORE_KEY)||'').length");
+    ok(size < 2500000, "και τα τρία χωράνε άνετα: " + size.toLocaleString("el-GR") + " χαρακτήρες");
+    renderAll(w, "με τα πραγματικά δεδομένα");
+    w.mniRevert("products"); w.mniRevert("suppliers"); w.mniRevert("customers");
+    ok(J(w, "DATA.customers.length") === 8 && J(w, "DATA.suppliers.length") === 6 && J(w, "DATA.products.length") === 12, "επαναφορά όλων");
+  }
+
+  sec("Πραγματικά δεδομένα με κωδικό — κρυπτογραφημένο αρχείο (Φ28δ)");
+  {
+    const cp = require("child_process"), os = require("os");
+    const packer = [path.join(__dirname, "..", "tools", "pack-data.js"), path.join(__dirname, "pack-data.js")].filter(f => fs.existsSync(f))[0];
+    ok(!!packer, "βρέθηκε το tools/pack-data.js");
+    const ENC = path.join(os.tmpdir(), "mn-test-" + process.pid + ".enc");
+    const PW = "δοκιμή-κωδικού-2026";
+    const run = cp.spawnSync(process.execPath, [packer, ENC,
+      "customers=" + path.join(FX, "customers_biff8.xls"), "suppliers=" + path.join(FX, "suppliers.csv"), "products=" + path.join(FX, "items.xlsx")],
+      {env:Object.assign({}, process.env, {MN_DATA_PASS:PW}), encoding:"utf8"});
+    ok(run.status === 0 && /κρυπτογραφημένο/.test(run.stdout), "το πακέτο φτιάχτηκε" + (run.status ? " → " + run.stderr : ""));
+    const encTxt = fs.readFileSync(ENC, "utf8");
+    ok(!/ΣΥΝΘΕΤΙΚΟΣ|Επωνυμία|ΠΡΟΜΗΘΕΥΤΗΣ/.test(encTxt) && JSON.parse(encTxt).iter >= 250000, "το αρχείο στο site δεν περιέχει αναγνώσιμο κείμενο");
+    const short = cp.spawnSync(process.execPath, [packer, ENC + "2", "customers=" + path.join(FX, "suppliers.csv")],
+      {env:Object.assign({}, process.env, {MN_DATA_PASS:"123"}), encoding:"utf8"});
+    ok(short.status !== 0, "ο packer αρνείται κωδικό κάτω από 10 χαρακτήρες");
+    Object.defineProperty(w, "crypto", {value:globalThis.crypto, configurable:true});
+    let fetched = 0;
+    w.fetch = async (u) => { fetched++; return {ok: String(u) === "data/nikou-data.enc", json: async () => JSON.parse(encTxt)}; };
+    w.goSec("admin", J(w, "MNI_SEC"));
+    v = w.document.getElementById("view").innerHTML;
+    ok(v.includes("Πραγματικά δεδομένα της εταιρείας") && v.includes("Φόρτωση πραγματικών δεδομένων") && w.document.getElementById("mniPw"),
+       "πλαίσιο με κωδικό στην κορυφή της οθόνης");
+    ok(w.document.querySelector(".banner").innerHTML.includes("Φόρτωση πραγματικών δεδομένων"), "σύνδεσμος φόρτωσης και στο banner");
+    const before = J(w, "JSON.stringify(DATA)");
+    w.document.getElementById("mniPw").value = "λάθος-κωδικός";
+    await w.mniRealLoad();
+    ok(J(w, "MNI_REAL.err") === "Λάθος κωδικός. Τίποτα δεν άλλαξε." && J(w, "JSON.stringify(DATA)") === before, "λάθος κωδικός: μήνυμα, καμία αλλαγή");
+    ok(w.document.getElementById("view").innerHTML.includes("Λάθος κωδικός"), "το μήνυμα φαίνεται");
+    w.document.getElementById("mniPw").value = PW;
+    await w.mniRealLoad();
+    ok(!J(w, "MNI_REAL.err"), "σωστός κωδικός: χωρίς σφάλμα" + (J(w, "MNI_REAL.err") ? " → " + J(w, "MNI_REAL.err") : ""));
+    ok(J(w, "DATA.customers.length") === 1197 && J(w, "DATA.customers.every(c=>c.imp)"), "πελάτες: 1.197, κανένας δοκιμαστικός");
+    ok(J(w, "DATA.suppliers.length") === 25 && J(w, "DATA.suppliers.every(c=>c.imp)"), "προμηθευτές: 25, κανένας δοκιμαστικός");
+    ok(J(w, "allVariants().filter(x=>x.v.imp).length") === 2360 && J(w, "DATA.products.filter(p=>!p.imp).length") === 12, "είδη: 2.360 SKU δίπλα στα 12 δοκιμαστικά προϊόντα");
+    ok(J(w, "!!(DATA._imp.real && DATA._imp.real.at)") && w.document.getElementById("view").innerHTML.includes("Ξαναφόρτωση"), "καταγράφηκε η φόρτωση · κουμπί «Ξαναφόρτωση»");
+    ok(/Φορτώθηκαν: Πελάτες 1\.197 · Προμηθευτές 25 · Είδη αποθήκης 2\.360/.test(J(w, "MNI_REAL.msg")), "μήνυμα: " + J(w, "MNI_REAL.msg"));
+    ok(J(w, "document.getElementById('mniPw').value") === "", "ο κωδικός δεν μένει στο πεδίο");
+    ok(!/λάθος-κωδικός|δοκιμή-κωδικού/.test(J(w, "localStorage.getItem(STORE_KEY)")), "ο κωδικός δεν αποθηκεύεται πουθενά");
+    w.document.getElementById("mniPw").value = PW;
+    await w.mniRealLoad();
+    ok(J(w, "DATA.customers.length") === 1197 && J(w, "allVariants().filter(x=>x.v.imp).length") === 2360 && J(w, "DATA.products.filter(p=>p.imp).length") === 4,
+       "δεύτερη φόρτωση: τίποτα δεν διπλασιάζεται");
+    renderAll(w, "μετά τη φόρτωση με κωδικό");
+    w.mniRevert("products"); w.mniRevert("suppliers"); w.mniRevert("customers");
+    ok(J(w, "DATA.customers.length") === 8 && J(w, "DATA.suppliers.length") === 6 && J(w, "DATA.orders.length") === 5, "επαναφορά όλων στα δοκιμαστικά");
+    try { fs.unlinkSync(ENC); } catch(e){}
+    w.eval("MNI_REAL.msg=''; MNI_REAL.err=''");
+  }
 
   sec("Όταν δεν χωράει");
   const before = J(w, "JSON.stringify(DATA)");

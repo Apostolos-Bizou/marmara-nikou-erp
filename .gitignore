@@ -10,3 +10,4 @@ Thumbs.db
 index*(*).html
 *.bak
 _archive/
+tests/import-fixtures/real/

@@ -1,6 +1,6 @@
-/*MNI:BEGIN v2*/
+/*MNI:BEGIN v4*/
 /* ============================================================
-   ΕΙΣΑΓΩΓΗ ΔΕΔΟΜΕΝΩΝ — ΠΕΛΑΤΕΣ · ΠΡΟΜΗΘΕΥΤΕΣ · ΕΙΔΗ  (Φ28 · οδηγός Φ28β)
+   ΕΙΣΑΓΩΓΗ ΔΕΔΟΜΕΝΩΝ — ΠΕΛΑΤΕΣ · ΠΡΟΜΗΘΕΥΤΕΣ · ΕΙΔΗ  (Φ28 · οδηγός Φ28β · .xls Φ28γ · πραγματικά Φ28δ)
    ------------------------------------------------------------
    Μία μηχανή, τρεις «συνταγές». Ο Λάμπρος φέρνει το αρχείο από το
    πρόγραμμα που δουλεύει σήμερα, αντιστοιχίζει στήλες, βλέπει τι
@@ -29,7 +29,7 @@
 var MNI_SEC = "Εισαγωγή δεδομένων";
 var MNI_MAPKEY = "mn_import_map_v1";
 var MNI = { type:null, file:"", fmt:"", cols:[], rows:[], map:{}, err:"", busy:false,
-            mode:"merge", activeOnly:true, result:null, caption:"" };
+            mode:"merge", activeOnly:true, result:null, caption:"", grp:"auto", skipKinds:true };
 
 /* ---------- ταφόπλακες (χρησιμοποιούνται και από το loadState) ---------- */
 function mnIsRemoved(coll,key){
@@ -68,10 +68,33 @@ function mniNum(v){
   } else if(s.indexOf(",") > -1) s = s.replace(",",".");
   var n = Number(s); return isFinite(n) ? n : null;
 }
+var MNI_LAT = {"Α":"A","Β":"B","Ε":"E","Ζ":"Z","Η":"H","Ι":"I","Κ":"K","Μ":"M","Ν":"N","Ο":"O","Ρ":"P","Τ":"T","Υ":"Y","Χ":"X"};
 function mniVat(v){
-  var s = mniStr(v).toUpperCase().replace(/\s|\./g,"").replace(/^(EL|GR)/,"");
+  var s = mniStr(v).toUpperCase().replace(/[\s.\-]/g,"");
+  /* ξένα ΑΦΜ γραμμένα με ελληνικά κεφαλαία: «ΙΤ0272…» → «IT0272…» */
+  if(/^[Α-ΩA-Z]{2}[0-9A-Z]/.test(s)) s = s.slice(0, 2).replace(/[ΑΒΕΖΗΙΚΜΝΟΡΤΥΧ]/g, function(c){ return MNI_LAT[c]; }) + s.slice(2);
+  s = s.replace(/^(EL|GR)(?=\d{9}$)/, "");
   if(/^\d{8}$/.test(s)) s = "0" + s;      /* το Excel τρώει το αρχικό μηδέν */
   return s;
+}
+/* Κενό, μηδενικά ή σύντομος αριθμός (1–7 ψηφία) = δεν είναι ΑΦΜ */
+function mniNoVat(v){ return !v || /^0+$/.test(v) || /^\d{1,7}$/.test(v); }
+function mniZip(v){
+  var s = mniStr(v), d = s.replace(/[\s.]/g, "");
+  return /^\d{5}$/.test(d) ? d : s;           /* «455.00», «45.500» → 45500 */
+}
+function mniDate(v){
+  var s = mniStr(v), n = Number(s), m;
+  if(s && isFinite(n) && n > 20000 && n < 80000){
+    var dt = new Date(Math.round((n - 25569) * 86400000));
+    return dt.toISOString().slice(0, 10);
+  }
+  if((m = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/))){
+    var y = m[3].length === 2 ? "20" + m[3] : m[3];
+    return y + "-" + m[2].padStart(2, "0") + "-" + m[1].padStart(2, "0");
+  }
+  if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  return "";
 }
 function mniAfmOk(v){
   if(!/^\d{9}$/.test(v) || v === "000000000") return false;
@@ -91,12 +114,18 @@ function mniStatus(v){
   if(n.indexOf("ενεργ") >= 0) return true;
   return null;
 }
+var MNI_UNITS = ["m²","m³","μ.μ.","τεμ.","τόνοι","φορτίο","παλέτα","kg"];
 function mniUnit(v){
+  if(MNI_UNITS.indexOf(v) >= 0) return v;        /* ήδη κανονική μονάδα — το «²» χάνεται στην κανονικοποίηση */
+  var raw = String(v == null ? "" : v).toLowerCase();
+  if(/[mμ]\s*²|[mμ]2\b/.test(raw)) return "m²";
+  if(/[mμ]\s*³|[mμ]3\b/.test(raw)) return "m³";
   var n = mniNorm(v);
   if(!n) return "";
   if(/^(τμ|μ2|m2|τ μ|sqm|τετραγωνικ)/.test(n)) return "m²";
   if(/^(μμ|μ μ|τρεχ|lm|m$|μετρ)/.test(n)) return "μ.μ.";
   if(/^(τεμ|τμχ|pcs|pc|τεμαχ)/.test(n)) return "τεμ.";
+  if(/^(τονν|τον|tn|t$)/.test(n)) return "τόνοι";
   if(/^(m3|μ3|κυβ)/.test(n)) return "m³";
   if(/^(kg|κιλ)/.test(n)) return "kg";
   return mniStr(v);
@@ -115,8 +144,7 @@ var MNI_READERS = [
     read:function(b){ return mniReadXlsx(b); } },
   { id:"xls", label:"Excel 97–2003 (.xls)",
     test:function(n,b){ return b[0] === 0xD0 && b[1] === 0xCF && b[2] === 0x11 && b[3] === 0xE0; },
-    read:function(){ return Promise.reject(mniErr(
-      "Το αρχείο είναι στην παλιά μορφή Excel (.xls). Ανοίξτε το στο Excel και αποθηκεύστε το ως «Βιβλίο εργασίας Excel (.xlsx)» ή ως CSV.")); } },
+    read:function(b){ return Promise.resolve(mniReadXls(b)); } },
   { id:"json", label:"JSON",
     test:function(n,b){ return /\.json$/i.test(n) || mniFirstChar(b) === "{" || mniFirstChar(b) === "["; },
     read:function(b){ return Promise.resolve(mniReadJson(mniText(b))); } },
@@ -300,20 +328,197 @@ async function mniReadXlsx(u){
   var tb = mniTable(rows); tb.caption = sheetName; return tb;
 }
 
+/* ---------- XLS (Excel 97–2003, BIFF8) — χωρίς εξωτερική βιβλιοθήκη ----------
+   Το πρόγραμμα του πελάτη εξάγει γνήσιο .xls. Δύο στρώματα:
+   (1) OLE2 / Compound File: ένα «μικρό σύστημα αρχείων» μέσα στο αρχείο,
+       από όπου διαβάζουμε το ρεύμα «Workbook».
+   (2) BIFF8: σειρά εγγραφών (τύπος, μήκος, δεδομένα). Κρατάμε μόνο όσες
+       περιέχουν τιμές κελιών του πρώτου φύλλου.                              */
+function mniCfb(u){
+  var dv = new DataView(u.buffer, u.byteOffset, u.byteLength);
+  var bad = function(){ return mniErr("Το αρχείο .xls φαίνεται κατεστραμμένο ή είναι σε άγνωστη παλιά μορφή. Ανοίξτε το στο Excel και αποθηκεύστε το ως «Βιβλίο εργασίας Excel (.xlsx)»."); };
+  if(u.length < 512 || dv.getUint32(0, true) !== 0xE011CFD0 || dv.getUint32(4, true) !== 0xE11AB1A1) throw bad();
+  var ssz = 1 << dv.getUint16(30, true), mssz = 1 << dv.getUint16(32, true);
+  var dirStart = dv.getUint32(48, true), cutoff = dv.getUint32(56, true);
+  var mfStart = dv.getUint32(60, true), difStart = dv.getUint32(68, true), nDif = dv.getUint32(72, true);
+  var END = 0xFFFFFFFA;
+  var off = function(s){ return (s + 1) * ssz; };
+  var fatSecs = [];
+  for(var i = 0; i < 109; i++){ var v = dv.getUint32(76 + i * 4, true); if(v < END) fatSecs.push(v); }
+  for(var d = difStart, g = 0; d < END && g <= nDif; g++){
+    if(off(d) + ssz > u.length) throw bad();
+    for(var j = 0; j < ssz / 4 - 1; j++){ var v2 = dv.getUint32(off(d) + j * 4, true); if(v2 < END) fatSecs.push(v2); }
+    d = dv.getUint32(off(d) + ssz - 4, true);
+  }
+  var fat = [];
+  fatSecs.forEach(function(s){
+    if(off(s) + ssz > u.length) throw bad();
+    for(var k = 0; k < ssz / 4; k++) fat.push(dv.getUint32(off(s) + k * 4, true));
+  });
+  var chain = function(start, table){
+    var out = [], s = start, n = 0;
+    while(s < END && n++ <= table.length){ out.push(s); s = table[s]; }
+    return out;
+  };
+  var readChain = function(start, size){
+    var secs = chain(start, fat), buf = new Uint8Array(secs.length * ssz);
+    secs.forEach(function(s, i){ if(off(s) + ssz <= u.length) buf.set(u.subarray(off(s), off(s) + ssz), i * ssz); });
+    return size != null ? buf.subarray(0, Math.min(size, buf.length)) : buf;
+  };
+  var dir = readChain(dirStart), dd = new DataView(dir.buffer), ents = [];
+  for(var e = 0; e + 128 <= dir.length; e += 128){
+    var nl = dd.getUint16(e + 64, true), name = "";
+    for(var c = 0; c < nl / 2 - 1; c++) name += String.fromCharCode(dd.getUint16(e + c * 2, true));
+    ents.push({name:name, type:dir[e + 66], start:dd.getUint32(e + 116, true), size:dd.getUint32(e + 120, true)});
+  }
+  if(!ents.length) throw bad();
+  return function(want){
+    var en = ents.filter(function(x){ return x.type === 2 && x.name.toLowerCase() === want.toLowerCase(); })[0];
+    if(!en) return null;
+    if(en.size >= cutoff) return readChain(en.start, en.size);
+    var ms = readChain(ents[0].start, ents[0].size), mf = readChain(mfStart), mdv = new DataView(mf.buffer), mfat = [];
+    for(var k2 = 0; k2 + 4 <= mf.length; k2 += 4) mfat.push(mdv.getUint32(k2, true));
+    var secs = chain(en.start, mfat), buf = new Uint8Array(secs.length * mssz);
+    secs.forEach(function(s, i){ buf.set(ms.subarray(s * mssz, (s + 1) * mssz), i * mssz); });
+    return buf.subarray(0, en.size);
+  };
+}
+function mniRk(dv, p){
+  var v = dv.getInt32(p, true), n;
+  if(v & 2) n = v >> 2;
+  else {
+    var b = new DataView(new ArrayBuffer(8));
+    b.setUint32(0, 0, true); b.setUint32(4, (v >>> 0) & 0xFFFFFFFC, true);
+    n = b.getFloat64(0, true);
+  }
+  return (v & 1) ? n / 100 : n;
+}
+function mniNumStr(n){
+  if(!isFinite(n)) return "";
+  return Number.isInteger(n) ? String(n) : String(Math.round(n * 1e10) / 1e10);
+}
+function mniXlsStr(dv, p, cchSize){
+  var cch = cchSize === 2 ? dv.getUint16(p, true) : dv.getUint8(p); p += cchSize;
+  var fl = dv.getUint8(p++), s = "";
+  if(fl & 8) p += 2;            /* rich runs */
+  if(fl & 4) p += 4;            /* ext */
+  for(var i = 0; i < cch; i++){
+    if(fl & 1){ s += String.fromCharCode(dv.getUint16(p, true)); p += 2; }
+    else s += String.fromCharCode(dv.getUint8(p++));
+  }
+  return s;
+}
+function mniReadXls(u){
+  var get = mniCfb(u);
+  var wb = get("Workbook") || get("Book");
+  if(!wb) throw mniErr("Το αρχείο .xls δεν περιέχει φύλλο εργασίας. Ανοίξτε το στο Excel και αποθηκεύστε το ως .xlsx.");
+  var dv = new DataView(wb.buffer, wb.byteOffset, wb.byteLength), L = wb.length;
+  var rec = function(p){ return {t:dv.getUint16(p, true), n:dv.getUint16(p + 2, true), d:p + 4}; };
+  /* --- global εγγραφές --- */
+  var p = 0, sheets = [], sstSegs = null, first = true;
+  while(p + 4 <= L){
+    var r = rec(p);
+    if(first){
+      if(r.t !== 0x0809 || dv.getUint16(r.d, true) !== 0x0600)
+        throw mniErr("Το αρχείο είναι σε πολύ παλιά μορφή Excel (95 ή παλιότερη). Ανοίξτε το στο Excel και αποθηκεύστε το ως .xlsx.");
+      first = false;
+    } else if(r.t === 0x0085){
+      sheets.push({pos:dv.getUint32(r.d, true), hidden:dv.getUint8(r.d + 4), kind:dv.getUint8(r.d + 5),
+                   name:mniXlsStr(dv, r.d + 6, 1)});
+    } else if(r.t === 0x00FC){
+      sstSegs = [wb.subarray(r.d, r.d + r.n)];
+      var q = r.d + r.n;
+      while(q + 4 <= L && dv.getUint16(q, true) === 0x003C){
+        var cn = dv.getUint16(q + 2, true);
+        sstSegs.push(wb.subarray(q + 4, q + 4 + cn)); q += 4 + cn;
+      }
+    } else if(r.t === 0x000A) break;
+    p = r.d + r.n;
+  }
+  /* --- πίνακας κοινών κειμένων (SST), με συνέχειες σε CONTINUE --- */
+  var sst = [];
+  if(sstSegs){
+    var si = 0, sp = 0;
+    var u8 = function(){ while(sp >= sstSegs[si].length){ si++; sp = 0; } return sstSegs[si][sp++]; };
+    var u16 = function(){ var a = u8(); return a | (u8() << 8); };
+    var u32 = function(){ return (u16() + u16() * 65536) >>> 0; };
+    var skip = function(n){ while(n-- > 0) u8(); };
+    var total = u32(), uniq = u32();
+    for(var k = 0; k < uniq; k++){
+      if(si >= sstSegs.length - 1 && sp >= sstSegs[si].length) break;
+      var cch = u16(), fl = u8(), hi = fl & 1, runs = (fl & 8) ? u16() : 0, ext = (fl & 4) ? u32() : 0, s = "";
+      while(cch > 0){
+        if(sp >= sstSegs[si].length){ si++; sp = 0; hi = sstSegs[si][sp++] & 1; }
+        var seg = sstSegs[si], bp = hi ? 2 : 1, n = Math.min(cch, Math.floor((seg.length - sp) / bp));
+        if(n <= 0){ si++; sp = 0; hi = sstSegs[si][sp++] & 1; continue; }
+        for(var c = 0; c < n; c++){
+          s += String.fromCharCode(hi ? (seg[sp] | (seg[sp + 1] << 8)) : seg[sp]);
+          sp += bp;
+        }
+        cch -= n;
+      }
+      skip(runs * 4); skip(ext);
+      sst.push(s);
+    }
+  }
+  /* --- πρώτο ορατό φύλλο εργασίας --- */
+  var sh = sheets.filter(function(x){ return x.kind === 0 && x.hidden === 0; })[0] || sheets[0];
+  if(!sh) throw mniErr("Το αρχείο .xls δεν περιέχει φύλλο εργασίας.");
+  var rows = [], put = function(r, c, v){ (rows[r] = rows[r] || [])[c] = v; };
+  p = sh.pos;
+  var pendingStr = null;
+  while(p + 4 <= L){
+    var w = rec(p), x = w.d;
+    if(w.t === 0x000A) break;
+    switch(w.t){
+      case 0x00FD: put(dv.getUint16(x, true), dv.getUint16(x + 2, true), sst[dv.getUint32(x + 6, true)] || ""); break;
+      case 0x0204: case 0x00D6: put(dv.getUint16(x, true), dv.getUint16(x + 2, true), mniXlsStr(dv, x + 6, 2)); break;
+      case 0x0203: put(dv.getUint16(x, true), dv.getUint16(x + 2, true), mniNumStr(dv.getFloat64(x + 6, true))); break;
+      case 0x027E: put(dv.getUint16(x, true), dv.getUint16(x + 2, true), mniNumStr(mniRk(dv, x + 6))); break;
+      case 0x00BD:
+        var rr = dv.getUint16(x, true), cf = dv.getUint16(x + 2, true), cnt = (w.n - 6) / 6;
+        for(var m = 0; m < cnt; m++) put(rr, cf + m, mniNumStr(mniRk(dv, x + 4 + m * 6 + 2)));
+        break;
+      case 0x0205:
+        put(dv.getUint16(x, true), dv.getUint16(x + 2, true),
+            dv.getUint8(x + 7) ? "" : (dv.getUint8(x + 6) ? "Ναι" : "Όχι"));
+        break;
+      case 0x0006:
+        var fr = dv.getUint16(x, true), fc = dv.getUint16(x + 2, true);
+        if(dv.getUint16(x + 12, true) === 0xFFFF){
+          var kind = dv.getUint8(x + 6);
+          if(kind === 0) pendingStr = [fr, fc];
+          else if(kind === 1) put(fr, fc, dv.getUint8(x + 8) ? "Ναι" : "Όχι");
+          else put(fr, fc, "");
+        } else put(fr, fc, mniNumStr(dv.getFloat64(x + 6, true)));
+        break;
+      case 0x0207:
+        if(pendingStr){ put(pendingStr[0], pendingStr[1], mniXlsStr(dv, x, 2)); pendingStr = null; }
+        break;
+    }
+    p = x + w.n;
+  }
+  for(var i2 = 0; i2 < rows.length; i2++){
+    rows[i2] = rows[i2] || [];
+    for(var j2 = 0; j2 < rows[i2].length; j2++) if(rows[i2][j2] === undefined) rows[i2][j2] = "";
+  }
+  var tb = mniTable(rows); tb.caption = sh.name; return tb;
+}
+
 /* ============================================================
    ΣΥΝΤΑΓΕΣ — τι πεδία δέχεται κάθε είδος και με ποια ονόματα
    ============================================================ */
 function mniF(k,l,syn,o){ var f = {k:k, l:l, syn:syn}; for(var x in (o||{})) f[x] = o[x]; return f; }
 var MNI_PARTY_FIELDS = function(who){ return [
-  mniF("ext","Κωδικός στο πρόγραμμα",["κωδικός "+who,"κωδικός","κωδ","code","id","α/α"],{not:["ταχ","τ.κ","αφμ","δου","άρθρ","barcode"]}),
-  mniF("name","Επωνυμία",["επωνυμία","ονοματεπώνυμο","ονομασία","επώνυμο",who,"name","company"],{req:true, not:["διακριτ"]}),
+  mniF("ext","Κωδικός στο πρόγραμμα",["κωδικός "+who,"κωδικός","κωδ","code","id","α/α"],{not:["ταχ","τ.κ","αφμ","δου","άρθρ","barcode","πωλητ","ομίλ"]}),
+  mniF("name","Επωνυμία",["επωνυμία","ονοματεπώνυμο","ονομασία","επώνυμο",who,"name","company"],{req:true, not:["διακριτ","πωλητ","ομίλ"]}),
   mniF("brand","Διακριτικός τίτλος",["διακριτικός τίτλος","διακριτικός","τίτλος","brand"]),
   mniF("vat","ΑΦΜ",["αφμ","α.φ.μ","vat","tax id","tin"],{t:"vat"}),
   mniF("doy","ΔΟΥ",["δου","δ.ο.υ","εφορία","tax office"]),
   mniF("kad","Επάγγελμα",["επάγγελμα","δραστηριότητα","καδ","occupation"]),
   mniF("cat","Κατηγορία",["κατηγορία "+who,"κατηγορία","ομάδα","group","category"]),
   mniF("addr","Διεύθυνση",["διεύθυνση","οδός","address","street"]),
-  mniF("zip","Τ.Κ.",["ταχυδρομικός κώδικας","τ.κ","τκ","ταχ. κωδ","zip","postal"]),
+  mniF("zip","Τ.Κ.",["ταχυδρομικός κώδικας","τ.κ","τκ","ταχ. κωδ","zip","postal"],{t:"zip"}),
   mniF("city","Πόλη",["πόλη","περιοχή","δήμος","city","town"]),
   mniF("country","Χώρα",["χώρα","country"]),
   mniF("tel","Τηλέφωνο",["τηλέφωνο","τηλ","phone","tel"],{t:"tel", not:["κινητ","fax","φαξ"]}),
@@ -325,6 +530,8 @@ var MNI_PARTY_FIELDS = function(who){ return [
   mniF("balance","Υπόλοιπο (€)",["υπόλοιπο","balance"],{t:"num"}),
   mniF("credit","Πιστωτικό όριο (€)",["πιστωτικό όριο","όριο πίστωσης","credit"],{t:"num"}),
   mniF("status","Ενεργός / Ανενεργός",["ενεργός","ενεργή","κατάσταση","ανενεργός","active","status"],{t:"status"}),
+  mniF("owner","Υπεύθυνος πωλητής",["επωνυμία πωλητή","πωλητής","υπεύθυνος πωλητής","salesman"]),
+  mniF("first","Ημερομηνία καταχώρησης",["ημ/νία καταχώρησης","ημερομηνία καταχώρησης","ημ/νία δημιουργίας","ημερομηνία εγγραφής","created"],{t:"date"}),
   mniF("notes","Σημειώσεις",["σημειώσεις","σχόλια","παρατηρήσεις","notes","remarks"])
 ]; };
 
@@ -339,9 +546,10 @@ var MNI_RECIPES = {
   products:{ label:"Είδη αποθήκης", many:"είδη", coll:"products", prefix:"PX-", replace:false,
     open:function(){ goSec("admin","Προϊόντα"); },
     fields:[
-      mniF("ext","Κωδικός είδους",["κωδικός είδους","κωδικός","κωδ","sku","code","id"],{not:["barcode","ταχ","ομάδ"]}),
+      mniF("ext","Κωδικός είδους",["κωδικός είδους","κωδικός","κωδ","sku","code","id"],{not:["barcode","ταχ","ομάδ","βοηθ","εργοστ"]}),
       mniF("name","Περιγραφή",["περιγραφή είδους","περιγραφή","ονομασία","είδος","name","description"],{req:true}),
-      mniF("group","Ομάδα (γίνεται προϊόν)",["ομάδα είδους","ομάδα","κατηγορία","οικογένεια","group","category"]),
+      mniF("group","Ομάδα",["ομάδα είδους","ομάδα","κατηγορία","οικογένεια","group","category"]),
+      mniF("kind","Λογιστικός χαρακτηρισμός",["λογ. χαρ/μός","λογιστικός χαρακτηρισμός","χαρακτηρισμός","λογ χαρ"]),
       mniF("barcode","Barcode",["barcode","ean"]),
       mniF("unit","Μονάδα μέτρησης",["μονάδα μέτρησης","μ.μ.","μονάδα","μον","unit"]),
       mniF("form","Μορφή",["μορφή","τύπος","form"]),
@@ -394,6 +602,25 @@ var MNI_PROTO = {};
     var P = {};
     Object.keys(MNI_DEF[t]).forEach(function(k){
       var d = MNI_DEF[t][k], obj = d !== null && typeof d === "object";
+      var own = function(self, v){ Object.defineProperty(self, k, {value:v, writable:true, enumerable:true, configurable:true}); };
+      /* Ο διακριτικός τίτλος = η επωνυμία, αν δεν δόθηκε — χωρίς να αποθηκεύεται δύο φορές */
+      if(k === "brand"){
+        Object.defineProperty(P, k, {configurable:true, enumerable:false,
+          get:function(){ return Object.prototype.hasOwnProperty.call(this, "name") ? this.name : ""; },
+          set:function(v){ own(this, v); }});
+        return;
+      }
+      /* Το ιστορικό ξεκινά με την εισαγωγή — από τα στοιχεία της παρτίδας, όχι αντίγραφο σε κάθε εγγραφή */
+      if(k === "acts"){
+        Object.defineProperty(P, k, {configurable:true, enumerable:false,
+          get:function(){
+            var b = DATA && DATA._imp && DATA._imp.batches && DATA._imp.batches[this.imp];
+            var v = [{d:b ? b.at.slice(0, 10) : "", t:"Εισαγωγή", txt:"Από " + (b ? b.file : "αρχείο")}];
+            own(this, v); return v;
+          },
+          set:function(v){ own(this, v); }});
+        return;
+      }
       Object.defineProperty(P, k, {
         configurable:true, enumerable:false,
         get:function(){
@@ -475,9 +702,10 @@ function mniMapped(){ var m = {}; for(var ci in MNI.map) if(MNI.map[ci]) m[MNI.m
 function mniPlan(){
   var type = MNI.type, R = MNI_RECIPES[type], M = mniMapped();
   var P = { total:MNI.rows.length, recs:[], noName:0, inactive:0, dups:0, badVat:0, badMail:0,
+            noVat:0, sameVat:0, kindSkipped:0, groups:0, grpMode:"",
             upd:0, add:0, hasName:M.name !== undefined, hasStatus:M.status !== undefined };
   if(!P.hasName) return P;
-  var seen = {}, existing = {};
+  var seen = {}, existing = {}, vatSeen = {};
   (DATA[R.coll] || []).forEach(function(r){ if(r.imp && r.ext) existing[r.ext] = 1; });
   MNI.rows.forEach(function(row){
     var o = {};
@@ -488,21 +716,92 @@ function mniPlan(){
             : f.t === "vat" ? mniVat(raw)
             : f.t === "tel" ? mniTel(raw)
             : f.t === "status" ? mniStatus(raw)
+            : f.t === "zip" ? mniZip(raw)
+            : f.t === "date" ? mniDate(raw)
             : mniStr(raw);
       if(v !== "" && v !== null) o[f.k] = v;
     });
-    if(!o.name){ P.noName++; return; }
+    if(!o.name || /^(.)\1{5,}$/.test(o.name.replace(/\s/g, ""))){ P.noName++; return; }
+    if(type === "products" && MNI.skipKinds && /εξοδ|υπηρεσ/.test(mniNorm((o.kind || "") + " " + (o.group || "")))){ P.kindSkipped++; return; }
     if(P.hasStatus && o.status === false){ P.inactive++; if(MNI.activeOnly) return; }
+    if(M.vat !== undefined && mniNoVat(o.vat)){ P.noVat++; delete o.vat; }
     var dk = o.ext ? "e:" + o.ext : (o.vat && mniAfmOk(o.vat) && type !== "products") ? "v:" + o.vat : "n:" + mniNorm(o.name);
     if(seen[dk]){ P.dups++; return; }
     seen[dk] = 1;
-    if(o.vat && /^\d+$/.test(o.vat) && !mniAfmOk(o.vat)) P.badVat++;
+    if(o.vat && /^\d{9}$/.test(o.vat) && !mniAfmOk(o.vat)) P.badVat++;
+    if(o.vat && mniAfmOk(o.vat)){ if(vatSeen[o.vat]) P.sameVat++; vatSeen[o.vat] = 1; }
     if(o.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(o.email)) P.badMail++;
     if(MNI.mode === "merge" && o.ext && existing[o.ext]) P.upd++; else P.add++;
     P.recs.push(o);
   });
+  if(type === "products") mniGroupItems(P, M);
   return P;
 }
+
+/* ---------- είδη: ανάλυση περιγραφής και ομαδοποίηση σε προϊόντα ----------
+   Στο πρόγραμμα του πελάτη ο κωδικός είναι «021.0.002»: το «021» είναι το
+   υλικό (ΔΕΜΑΤΙΟΥ), το υπόλοιπο η μορφή. Η περιγραφή κουβαλάει πάχος και
+   μονάδα: «ΔΕΜΑΤΙΟΥ 0,02 ΣΕ Μ2». Η στήλη «Ομάδα» εκεί λέει Προϊόν/Εμπόρευμα
+   — δεν είναι υλικό, γι' αυτό η ομαδοποίηση γίνεται από τον κωδικό. */
+function mniGrpKey(code){
+  var sg = String(code || "").split(".");
+  if(sg.length < 2) return "";
+  return sg[0].length >= 3 ? sg[0] : sg.slice(0, 2).join(".");
+}
+function mniParseDesc(d){
+  var u = String(d || "").toUpperCase().replace(/M/g, "Μ"), r = {};
+  if(/ΣΕ\s*Μ2|\bΜ2\b|Μ²/.test(u)) r.unit = "m²";
+  else if(/ΣΕ\s*Μ\.?\s?Μ\.?(\s|$)|ΤΡΕΧ/.test(u)) r.unit = "μ.μ.";
+  else if(/ΣΕ\s*Μ3|\bΜ3\b/.test(u)) r.unit = "m³";
+  else if(/ΤΟΝΝ/.test(u)) r.unit = "τόνοι";
+  else if(/ΤΕΜ/.test(u)) r.unit = "τεμ.";
+  else if(/ΦΟΡΤΙΟ/.test(u)) r.unit = "φορτίο";
+  else if(/ΠΑΛΕΤ/.test(u)) r.unit = "παλέτα";
+  else if(/\bKG\b|ΚΙΛ|ΣΕ ΚG/.test(u)) r.unit = "kg";
+  var t = u.match(/(\d+[.,]\d+)\s*(CΜ|ΕΚ)?/);
+  if(t){
+    var n = Number(t[1].replace(",", "."));
+    if(t[2]) r.th = n; else if(n > 0 && n < 0.2) r.th = Math.round(n * 1000) / 10;
+    if(/&\s*ΑΝΩ/.test(u) && r.th) r.thUp = true;
+  }
+  r.material = String(d || "").replace(/\s+ΣΕ\s+.*$/i, "").replace(/[\s.]+\d+[.,]\d+.*$/, "")
+    .replace(/\s*&\s*ΑΝΩ.*$/i, "").replace(/\s+/g, " ").trim();
+  return r;
+}
+var MNI_FORM = {"m³":"Όγκος", "τόνοι":"Χύμα (τόνοι)", "τεμ.":"Τεμάχιο", "φορτίο":"Φορτίο",
+                "παλέτα":"Παλέτα", "μ.μ.":"Τρέχον μέτρο", "kg":"Κιλά"};
+function mniGroupItems(P, M){
+  var withDot = P.recs.filter(function(o){ return /\d\.\d/.test(o.ext || ""); }).length;
+  var mode = MNI.grp === "auto"
+    ? (P.recs.length && withDot / P.recs.length >= 0.5 ? "code" : (M.group !== undefined ? "column" : "none"))
+    : MNI.grp;
+  P.grpMode = mode;
+  var names = {};
+  P.recs.forEach(function(o, i){
+    var pd = mniParseDesc(o.name);
+    if(o.unit === undefined && pd.unit) o.unit = pd.unit;
+    if(o.th === undefined && pd.th != null) o.th = pd.th;
+    if(pd.thUp) o.thUp = true;
+    if(o.form === undefined){
+      var un = mniUnit(o.unit);
+      o.form = un === "m²" ? (o.th ? "Πλάκα " + String(o.th).replace(".", ",") + (o.thUp ? "+" : "") + " cm" : "Πλάκα")
+             : un === "μ.μ." && o.th ? "Τρέχον μέτρο · " + String(o.th).replace(".", ",") + (o.thUp ? "+" : "") + " cm"
+             : (MNI_FORM[un] || "Είδος αποθήκης");
+    }
+    var g = mode === "code" ? mniGrpKey(o.ext) : mode === "column" ? (o.group || "") : "";
+    o._g = g ? g : ("#" + (o.ext || i));
+    var nm = mode === "column" ? (o.group || o.name) : (g ? (pd.material || o.name) : o.name);
+    names[o._g] = names[o._g] || {};
+    names[o._g][nm] = (names[o._g][nm] || 0) + 1;
+  });
+  var best = {};
+  Object.keys(names).forEach(function(g){
+    best[g] = Object.keys(names[g]).sort(function(a, b){ return names[g][b] - names[g][a] || a.length - b.length; })[0];
+  });
+  P.recs.forEach(function(o){ o._pn = best[o._g]; });
+  P.groups = Object.keys(names).length;
+}
+
 
 /* ---------- αντικατάσταση δοκιμαστικών: κανόνες εξαρτήσεων ---------- */
 var MNI_RULES = {
@@ -595,22 +894,21 @@ function mniUniqueId(coll, base){
   while(have[id]) id = base + "-" + (n++);
   return id;
 }
-function mniPartyRecord(type, o, file){
+function mniPartyRecord(type, o, file, batch){
   var R = MNI_RECIPES[type], r = Object.create(MNI_PROTO[type]);
   r.id = mniUniqueId(R.coll, R.prefix + (o.ext ? String(o.ext).replace(/\s+/g, "") : mniSlug(o.name)));
-  r.imp = 1;
-  ["ext","name","brand","vat","doy","kad","cat","addr","zip","city","country","tel","mob","email","web",
-   "payTerms","balance","credit","notes","iban"].forEach(function(k){ if(o[k] !== undefined) r[k] = o[k]; });
-  if(!o.brand) r.brand = o.name;
+  r.imp = batch;
+  MNI_PARTY_KEYS.forEach(function(k){ if(o[k] !== undefined) r[k] = o[k]; });
+  if(type === "suppliers" && o.first) r.since = o.first;
   if(o.mob) r.wa = o.mob;
   if(o.status === false) r.status = type === "customers" ? "Ανενεργός" : "Ανενεργός";
   if(o.contact) r.contacts = [{n:o.contact, r:"Επαφή", m:o.mob || o.tel || "", e:o.email || "", bd:"", note:"", dept:""}];
-  r.acts = [{d:mniToday(), t:"Εισαγωγή", txt:"Από " + file}];
   return r;
 }
+var MNI_PARTY_KEYS = ["ext","name","brand","vat","doy","kad","cat","addr","zip","city","country","tel","mob","email","web",
+                      "payTerms","balance","credit","notes","iban","owner","first"];
 function mniMergeParty(r, o){
-  ["name","brand","vat","doy","kad","cat","addr","zip","city","country","tel","mob","email","web",
-   "payTerms","balance","credit","notes","iban"].forEach(function(k){ if(o[k] !== undefined) r[k] = o[k]; });
+  MNI_PARTY_KEYS.forEach(function(k){ if(k !== "ext" && o[k] !== undefined) r[k] = o[k]; });
   if(o.status !== undefined && o.status !== null) r.status = o.status ? "Ενεργός" : "Ανενεργός";
 }
 function mniVariant(o, i){
@@ -618,6 +916,8 @@ function mniVariant(o, i){
             form:o.form || "Είδος αποθήκης", th:o.th != null ? o.th : 0, fin:o.fin || "—",
             unit:mniUnit(o.unit) || "τεμ.", stock:o.stock != null ? o.stock : 0, loc:"—",
             base:o.price != null ? o.price : 0, name:o.name, imp:1 };
+  if(o.kind) v.kind = o.kind;
+  if(o.thUp) v.thUp = true;
   if(o.cost != null) v.cost = o.cost;
   if(o.barcode) v.barcode = o.barcode;
   if(o.dims) v.dims = o.dims;
@@ -625,8 +925,8 @@ function mniVariant(o, i){
   if(o.status === false) v.inactive = true;
   return v;
 }
-function mniImportProducts(P, file){
-  var R = MNI_RECIPES.products, M = mniMapped(), grouped = M.group !== undefined;
+function mniImportProducts(P, file, batch){
+  var R = MNI_RECIPES.products;
   var skus = {}; allVariants().forEach(function(x){ skus[x.v.sku] = x; });
   var add = 0, upd = 0, prods = 0;
   P.recs.forEach(function(o, i){
@@ -636,16 +936,19 @@ function mniImportProducts(P, file){
       for(var k in v) hit.v[k] = v[k]; upd++; return;
     }
     if(hit) v.sku = v.sku + "-X";                /* σύγκρουση με δικό μας SKU */
-    var pcode = R.prefix + (grouped && o.group ? mniSlug(o.group) : (o.ext ? v.sku : mniSlug(o.name) + "-" + (i + 1)));
+    var single = o._g.charAt(0) === "#";
+    var pcode = R.prefix + (single ? (o.ext ? v.sku : mniSlug(o.name) + "-" + (i + 1)) : mniSlug(o._g));
     var p = find(DATA.products, "code", pcode);
     if(!p){
       p = Object.create(MNI_PROTO.products);
-      p.code = pcode; p.imp = 1;
-      p.name = grouped && o.group ? o.group : o.name;
-      if(grouped && o.group) p.family = o.group;
+      p.code = pcode; p.imp = batch;
+      p.name = o._pn || o.name;
+      if(P.grpMode === "column" && o.group) p.family = o.group;
+      if(/^ΓΡΑΝ/i.test(p.name)) p.petro = "Γρανίτης";
+      else if(/^ΜΑΡΜ/i.test(p.name)) p.petro = "Μάρμαρο";
       if(o.supplier) p.supplier = o.supplier;
       p.created = mniToday(); p.variants = [];
-      p.notes = "Εισαγωγή από " + file;
+      p.notes = "Εισαγωγή από " + file + (single ? "" : " · ομάδα κωδικού " + o._g);
       DATA.products.push(p); prods++;
     }
     p.variants.push(v); skus[v.sku] = {p:p, v:v}; add++;
@@ -675,18 +978,22 @@ function mniRun(){
   var replace = MNI.mode === "replace" && R.replace;
   if(replace){
     var imp = mniReplace(type, false);
-    if(imp.demo && !confirm("Θα αφαιρεθούν " + imp.demo + " δοκιμαστικοί " + R.many
+    if(imp.demo && !MNI.noConfirm && !confirm("Θα αφαιρεθούν " + imp.demo + " δοκιμαστικοί " + R.many
         + " μαζί με τις δοκιμαστικές κινήσεις τους. Επανέρχονται με «Επαναφορά». Συνέχεια;")) return;
   }
   var snapshot = JSON.stringify(DATA);
   var at = new Date().toISOString(), res = {type:type, file:MNI.file, fmt:MNI.fmt, at:at,
-             rows:P.total, add:0, upd:0, skipped:P.noName + P.dups + (MNI.activeOnly ? P.inactive : 0),
+             rows:P.total, add:0, upd:0, skipped:P.noName + P.dups + P.kindSkipped + (MNI.activeOnly ? P.inactive : 0),
              mode:replace ? "replace" : "merge"};
   DATA._imp = DATA._imp || {log:[], journal:{}};
+  DATA._imp.batches = DATA._imp.batches || {};
+  DATA._imp.seq = (DATA._imp.seq || 1) + 1;          /* 1 = εισαγωγές πριν τις παρτίδες */
+  var batch = DATA._imp.seq;
+  DATA._imp.batches[batch] = {file:MNI.file, at:at};
   var J = DATA._imp.journal[type] = DATA._imp.journal[type] || {sets:[], tombs:[]};
 
   if(type === "products"){
-    var pr = mniImportProducts(P, MNI.file);
+    var pr = mniImportProducts(P, MNI.file, batch);
     res.add = pr.add; res.upd = pr.upd; res.prods = pr.prods;
   } else {
     if(replace){
@@ -701,7 +1008,7 @@ function mniRun(){
     P.recs.forEach(function(o){
       var hit = o.ext && byExt[o.ext];
       if(hit){ mniMergeParty(hit, o); res.upd++; }
-      else { var r = mniPartyRecord(type, o, MNI.file); DATA[R.coll].push(r); if(o.ext) byExt[o.ext] = r; res.add++; }
+      else { var r = mniPartyRecord(type, o, MNI.file, batch); DATA[R.coll].push(r); if(o.ext) byExt[o.ext] = r; res.add++; }
     });
   }
   DATA._imp.log.unshift(res);
@@ -714,6 +1021,7 @@ function mniRun(){
   res.size = sv.size;
   MNI.result = res;
   MNI.cols = []; MNI.rows = []; MNI.map = {};   /* το αρχείο «καταναλώθηκε» — όχι δεύτερο πάτημα κατά λάθος */
+  MNI.file = ""; MNI.fmt = ""; MNI.caption = "";
   CUST = null; SUP = null; PROD = null;
   render();
   toast("Μπήκαν " + res.add.toLocaleString("el-GR") + " · ενημερώθηκαν " + res.upd.toLocaleString("el-GR") + ".");
@@ -745,6 +1053,87 @@ function mniRevert(type){
   MNI.result = null; CUST = null; SUP = null; PROD = null;
   render();
   toast("Επανήλθαν τα δοκιμαστικά — " + n + " εισαγμένες εγγραφές αφαιρέθηκαν.");
+}
+
+/* ============================================================
+   ΠΡΑΓΜΑΤΙΚΑ ΔΕΔΟΜΕΝΑ ΤΗΣ ΕΤΑΙΡΕΙΑΣ — ένα κουμπί, ένας κωδικός  (Φ28δ)
+   ------------------------------------------------------------
+   Για να κάνουν τη δοκιμή ο Λάμπρος και η γραμματεία χωρίς να
+   χειριστούν αρχεία. Τα αρχεία της εταιρείας βρίσκονται στο site
+   ΚΡΥΠΤΟΓΡΑΦΗΜΕΝΑ (data/nikou-data.enc). Με τον σωστό κωδικό
+   ανοίγουν μέσα στον browser και περνούν από την ίδια μηχανή
+   εισαγωγής. Λάθος κωδικός = τίποτα δεν αλλάζει.
+   ============================================================ */
+var MNI_REAL_URL = "data/nikou-data.enc";
+var MNI_REAL = {busy:false, msg:"", err:"", step:""};
+function mniB64(s){ var b = atob(s), u = new Uint8Array(b.length); for(var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
+async function mniRealDecrypt(pw){
+  var res;
+  try { res = await fetch(MNI_REAL_URL, {cache:"no-store"}); } catch(e){ res = null; }
+  if(!res || !res.ok) throw mniErr("Δεν βρέθηκε το αρχείο δεδομένων στο site. Ανοίξτε την εφαρμογή από τη διεύθυνση του GitHub Pages.");
+  var pkg = await res.json();
+  if(!window.crypto || !crypto.subtle) throw mniErr("Ο browser δεν υποστηρίζει αποκρυπτογράφηση. Ανοίξτε το site με https σε Chrome, Edge ή Firefox.");
+  var base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveKey"]);
+  var key = await crypto.subtle.deriveKey({name:"PBKDF2", salt:mniB64(pkg.salt), iterations:pkg.iter, hash:"SHA-256"},
+                                          base, {name:"AES-GCM", length:256}, false, ["decrypt"]);
+  var plain;
+  try { plain = await crypto.subtle.decrypt({name:"AES-GCM", iv:mniB64(pkg.iv)}, key, mniB64(pkg.ct)); }
+  catch(e){ throw mniErr("Λάθος κωδικός. Τίποτα δεν άλλαξε."); }
+  var txt = await new Response(new Response(new Uint8Array(plain)).body.pipeThrough(new DecompressionStream("gzip"))).text();
+  return JSON.parse(txt);
+}
+async function mniRealLoad(){
+  var el = document.getElementById("mniPw"), pw = el ? el.value : "";
+  if(!pw){ MNI_REAL.err = "Γράψτε τον κωδικό."; render(); return; }
+  MNI_REAL.busy = true; MNI_REAL.err = ""; MNI_REAL.msg = ""; MNI_REAL.step = "Άνοιγμα αρχείου…"; render();
+  try {
+    var data = await mniRealDecrypt(pw);
+    var done = [];
+    for(var i = 0; i < data.files.length; i++){
+      var f = data.files[i], R = MNI_RECIPES[f.type];
+      if(!R) continue;
+      MNI_REAL.step = R.label + "…"; render();
+      MNI.type = f.type; MNI.activeOnly = true; MNI.grp = "auto"; MNI.skipKinds = true;
+      MNI.mode = R.replace ? "replace" : "merge";
+      await mniLoadBytes(f.name, mniB64(f.b64));
+      if(MNI.err) throw mniErr(f.name + ": " + MNI.err);
+      MNI.noConfirm = true;
+      try { mniRun(); } finally { MNI.noConfirm = false; }
+      if(!MNI.result || MNI.result.fail) throw mniErr(f.name + ": δεν χώρεσε στον τοπικό χώρο του browser.");
+      done.push(R.label + " " + (MNI.result.add + MNI.result.upd).toLocaleString("el-GR"));
+    }
+    DATA._imp.real = {at:new Date().toISOString(), packed:data.packed || ""};
+    saveState();
+    MNI.result = null;
+    MNI_REAL.msg = "Φορτώθηκαν: " + done.join(" · ") + ". Οι δοκιμαστικοί πελάτες και προμηθευτές αντικαταστάθηκαν.";
+    toast("Τα πραγματικά δεδομένα φορτώθηκαν.");
+  } catch(e){
+    MNI_REAL.err = e.mni ? e.message : "Η φόρτωση απέτυχε: " + e.message;
+  } finally {
+    MNI_REAL.busy = false; MNI_REAL.step = "";
+    if(el) el.value = "";
+    render();
+  }
+}
+function mniRealBox(){
+  var real = DATA._imp && DATA._imp.real;
+  var h = '<div class="card" style="margin:14px 0 6px;padding:16px 18px;border-left:3px solid var(--ink)">'
+    + '<div style="font-weight:700;font-size:15px;margin-bottom:6px">Πραγματικά δεδομένα της εταιρείας</div>'
+    + '<div style="font-size:13.5px;line-height:1.6;color:var(--muted);margin-bottom:10px">'
+    + (real
+      ? 'Φορτώθηκαν σε αυτόν τον υπολογιστή στις ' + esc(String(real.at).slice(0, 16).replace("T", " "))
+        + '. Πατήστε ξανά για νεότερη έκδοση· για επιστροφή στα δοκιμαστικά, «Επαναφορά» στο ιστορικό πιο κάτω.'
+      : 'Πελάτες, προμηθευτές και είδη από το εμπορικό πρόγραμμα, έτοιμα για τη δοκιμή. '
+        + 'Γράψτε τον κωδικό που σας δόθηκε — η φόρτωση παίρνει λίγα δευτερόλεπτα.')
+    + '</div>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+    + '<input class="f" id="mniPw" type="password" autocomplete="off" placeholder="Κωδικός" style="max-width:220px"'
+    + (MNI_REAL.busy ? ' disabled' : '') + ' onkeydown="if(event.key===\'Enter\')mniRealLoad()">'
+    + '<button class="b" onclick="mniRealLoad()"' + (MNI_REAL.busy ? ' disabled' : '') + '>'
+    + (MNI_REAL.busy ? esc(MNI_REAL.step || "Φόρτωση…") : (real ? "Ξαναφόρτωση" : "Φόρτωση πραγματικών δεδομένων")) + '</button></div>';
+  if(MNI_REAL.err) h += '<div style="margin-top:10px;color:var(--bad,#b3261e);font-size:13.5px;font-weight:600">' + esc(MNI_REAL.err) + '</div>';
+  if(MNI_REAL.msg) h += '<div style="margin-top:10px;color:var(--ok,#2e7d32);font-size:13.5px;font-weight:600">' + esc(MNI_REAL.msg) + '</div>';
+  return h + '</div>';
 }
 
 /* ============================================================
@@ -799,6 +1188,7 @@ function mniSetMap(ci, f){
 function mniOpt(k, v){ MNI[k] = v; render(); }
 function mniSetType(type){
   MNI.type = type; MNI.map = MNI.cols.length ? mniAutoMap(type, MNI.cols) : {};
+  MNI.grp = "auto"; MNI.skipKinds = true;
   MNI.mode = "merge"; MNI.result = null; render();
 }
 
@@ -825,6 +1215,7 @@ function viewImport(){
     + kpi("Προμηθευτές", C.suppliers[1].toLocaleString("el-GR"), C.suppliers[0] ? C.suppliers[0].toLocaleString("el-GR") + " από εισαγωγή" : "μόνο δοκιμαστικοί")
     + kpi("Είδη (SKU)", C.products[1].toLocaleString("el-GR"), C.products[0] ? C.products[0].toLocaleString("el-GR") + " από εισαγωγή" : "μόνο δοκιμαστικά")
     + mniStorageKpi() + '</div>';
+  h += mniRealBox();
 
   /* 1 — τι φέρνετε */
   h += mniH("1. Τι φέρνετε");
@@ -858,7 +1249,12 @@ function viewImport(){
   h += '<div class="tw"><table><thead><tr><th>Στήλη αρχείου</th><th>Δείγμα</th><th style="width:300px">Πεδίο στην εφαρμογή</th></tr></thead><tbody>';
   MNI.cols.forEach(function(c, ci){
     var smp = [];
-    for(var i = 0; i < MNI.rows.length && smp.length < 3; i++){ var v = mniStr(MNI.rows[i][ci]); if(v) smp.push(v); }
+    var fdef = R.fields.filter(function(f){ return f.k === MNI.map[ci]; })[0];
+    for(var i = 0; i < MNI.rows.length && smp.length < 3; i++){
+      var v = mniStr(MNI.rows[i][ci]);
+      if(v && fdef && fdef.t === "date") v = mniDate(v) || v;   /* 44558 → 2021-12-28 */
+      if(v) smp.push(v);
+    }
     var opts = '<option value="">— να μη μπει —</option>' + R.fields.map(function(f){
       var taken = used[f.k] !== undefined && used[f.k] !== ci;
       return '<option value="' + f.k + '"' + (MNI.map[ci] === f.k ? ' selected' : '') + '>'
@@ -877,26 +1273,47 @@ function viewImport(){
     return h + mniBox("bad", "Αντιστοιχίστε τη στήλη που έχει την <strong>"
       + esc(R.fields.filter(function(f){ return f.req; })[0].l) + "</strong>. Χωρίς αυτή δεν γίνεται εισαγωγή.") + mniHistory();
   }
+  var fmt = function(n){ return n.toLocaleString("el-GR"); };
+  var skipped = P.noName + P.dups + P.kindSkipped + (MNI.activeOnly ? P.inactive : 0);
   h += '<div class="grid">'
-    + kpi("Γραμμές αρχείου", P.total.toLocaleString("el-GR"), "")
-    + kpi("Θα μπουν", P.recs.length.toLocaleString("el-GR"), P.upd ? P.add + " νέες · " + P.upd + " ενημερώσεις" : "όλες νέες")
-    + kpi("Παραλείπονται", (P.noName + P.dups + (MNI.activeOnly ? P.inactive : 0)).toLocaleString("el-GR"),
-          P.noName + " χωρίς όνομα · " + P.dups + " διπλές" + (P.hasStatus ? " · " + P.inactive + " ανενεργές" : ""),
+    + kpi("Γραμμές αρχείου", fmt(P.total), "")
+    + kpi(MNI.type === "products" ? "Θα μπουν (SKU)" : "Θα μπουν", fmt(P.recs.length),
+          P.upd ? fmt(P.add) + " νέες · " + fmt(P.upd) + " ενημερώσεις" : "όλες νέες")
+    + (MNI.type === "products" ? kpi("Προϊόντα", fmt(P.groups),
+          P.grpMode === "code" ? "ομάδες από τον κωδικό" : P.grpMode === "column" ? "από τη στήλη ομάδας" : "ένα ανά είδος") : "")
+    + kpi("Παραλείπονται", fmt(skipped),
+          [P.noName + " χωρίς όνομα", P.dups + " διπλές"]
+            .concat(P.kindSkipped ? [P.kindSkipped + " έξοδα/υπηρεσίες"] : [])
+            .concat(P.hasStatus ? [P.inactive + " ανενεργές"] : []).join(" · "),
           (P.noName + P.dups) > 0)
     + (MNI.type !== "products" ? kpi("Προς έλεγχο", P.badVat + P.badMail,
           P.badVat + " ΑΦΜ · " + P.badMail + " email — μπαίνουν όπως είναι", (P.badVat + P.badMail) > 0) : "")
+    + (MNI.type !== "products" && P.noVat ? kpi("Χωρίς ΑΦΜ", fmt(P.noVat),
+          "κενό, μηδενικά ή σύντομος αριθμός — μπαίνουν χωρίς ΑΦΜ") : "")
     + '</div>';
+  if(P.sameVat) h += '<p class="sub">' + fmt(P.sameVat) + ' εγγραφές έχουν ΑΦΜ που υπάρχει ήδη σε άλλον κωδικό. Μπαίνουν χωριστά — '
+    + 'είναι πιθανόν η ίδια εταιρεία δύο φορές στο πρόγραμμά σας.</p>';
   if(P.hasStatus){
     h += '<label style="display:flex;gap:8px;align-items:center;margin:10px 0;font-size:14px">'
       + '<input type="checkbox"' + (MNI.activeOnly ? ' checked' : '') + ' onchange="mniOpt(\'activeOnly\',this.checked)"> '
       + 'Μόνο ενεργοί (' + (P.inactive).toLocaleString("el-GR") + ' ανενεργές μένουν έξω)</label>';
+    if(P.total > 50 && P.inactive / P.total < 0.02)
+      h += mniBox("warn", "Σχεδόν όλες οι εγγραφές είναι «Ενεργός: Ναι» (" + fmt(P.inactive) + " ανενεργές σε " + fmt(P.total)
+        + "). Η στήλη δεν ξεχωρίζει όσους δουλεύετε σήμερα. Για να μπουν μόνο αυτοί, χρειάζεται εξαγωγή με στήλη "
+        + "«Τελευταία κίνηση» ή «Τζίρος».");
   } else {
     h += '<p class="sub">Δεν υπάρχει στήλη «ενεργός/ανενεργός» — θα μπουν όλες οι εγγραφές.</p>';
   }
   /* προεπισκόπηση */
+  var Mm = mniMapped();
   var cols = MNI.type === "products"
-    ? [["ext","Κωδικός"],["name","Περιγραφή"],["group","Ομάδα"],["unit","Μον."],["price","Τιμή"],["stock","Απόθεμα"]]
-    : [["ext","Κωδικός"],["name","Επωνυμία"],["vat","ΑΦΜ"],["city","Πόλη"],["tel","Τηλέφωνο"],["email","Email"]];
+    ? [["ext","Κωδικός"],["name","Περιγραφή"],["_pn","→ Προϊόν"],["form","Μορφή"],["unit","Μον."]]
+        .concat(Mm.price !== undefined ? [["price","Τιμή"]] : []).concat(Mm.stock !== undefined ? [["stock","Απόθεμα"]] : [])
+        .concat(Mm.kind !== undefined ? [["kind","Χαρακτηρισμός"]] : [])
+    : [["ext","Κωδικός"],["name","Επωνυμία"],["vat","ΑΦΜ"]]
+        .concat(Mm.city !== undefined ? [["city","Πόλη"]] : Mm.addr !== undefined ? [["addr","Διεύθυνση"]] : [])
+        .concat([["tel","Τηλέφωνο"]])
+        .concat(Mm.email !== undefined ? [["email","Email"]] : Mm.owner !== undefined ? [["owner","Πωλητής"]] : []);
   h += '<div class="tw" style="margin-top:10px"><table><thead><tr>'
     + cols.map(function(c){ return '<th>' + esc(c[1]) + '</th>'; }).join("") + '</tr></thead><tbody>';
   P.recs.slice(0, 12).forEach(function(o){
@@ -925,6 +1342,16 @@ function viewImport(){
       + (imp.unlinked ? ' ' + imp.unlinked + ' εγγραφές μένουν αλλά χάνουν τη σύνδεση (π.χ. εντολές παραγωγής χωρίς παραγγελία).' : '')
       + ' Όλα επανέρχονται με «Επαναφορά».</span></label>';
   } else {
+    var gl = {auto:"Αυτόματα (προτείνεται)", code:"Από τον κωδικό (021.0.002 → υλικό 021)", column:"Από τη στήλη «Ομάδα»", none:"Κάθε είδος χωριστό προϊόν"};
+    h += '<div class="frow" style="margin:6px 0 10px"><div><label class="f">Ομαδοποίηση σε προϊόντα</label>'
+      + '<select class="f" onchange="mniOpt(\'grp\',this.value)">'
+      + Object.keys(gl).map(function(k){ return '<option value="' + k + '"' + (MNI.grp === k ? ' selected' : '') + '>' + esc(gl[k]) + '</option>'; }).join("")
+      + '</select></div></div>';
+    h += '<p class="sub">Τώρα: <strong>' + esc(P.grpMode === "code" ? "από τον κωδικό" : P.grpMode === "column" ? "από τη στήλη «Ομάδα»" : "κάθε είδος χωριστά")
+      + '</strong> → ' + fmt(P.groups) + ' προϊόντα. Πάχος, μονάδα και μορφή διαβάζονται από την περιγραφή όταν δεν υπάρχουν στήλες.</p>';
+    h += '<label style="display:flex;gap:8px;align-items:center;margin:6px 0 10px;font-size:14px">'
+      + '<input type="checkbox"' + (MNI.skipKinds ? ' checked' : '') + ' onchange="mniOpt(\'skipKinds\',this.checked)"> '
+      + 'Χωρίς λογιστικά έξοδα και υπηρεσίες' + (P.kindSkipped ? ' (' + fmt(P.kindSkipped) + ' μένουν έξω)' : '') + '</label>';
     h += '<p class="sub">Η αντικατάσταση των δοκιμαστικών προϊόντων δεν είναι διαθέσιμη ακόμα: τα 12 προϊόντα μας συνδέονται με δελτία, '
       + 'προσφορές, παραγγελίες, πλάκες και τιμοκαταλόγους. Θα οριστεί όταν δούμε πώς οργανώνει τα είδη το πρόγραμμά σας.</p>';
   }
@@ -1012,6 +1439,39 @@ render = function(){
   hook("viewSuppliers", '<button class="b" onclick="openNewSupplier()">+ Νέος προμηθευτής</button>', "suppliers", "Εισαγωγή προμηθευτών");
   hook("viewProducts",  '<button class="b" onclick="openNewProduct()">+ Νέο προϊόν</button>', "products", "Εισαγωγή ειδών");
 })();
+/* ---------- μεγάλες λίστες: σελίδες των 150 ----------
+   Με 4.373 πελάτες ο πίνακας ζωγραφίζει χιλιάδες γραμμές σε κάθε πλήκτρο.
+   Η αναζήτηση και τα φίλτρα δουλεύουν σε ΟΛΕΣ τις εγγραφές· κόβεται μόνο η
+   εμφάνιση, με κουμπί για τις επόμενες. */
+var MNI_PAGE = 150, MNI_SHOW = {}, MNI_FULL = {};
+var _mniRunTable = runTable;
+runTable = function(t, rows, cfg){
+  var out = _mniRunTable(t, rows, cfg);
+  if(["cust","sup","prd"].indexOf(t) < 0 || out.length <= MNI_PAGE) { MNI_FULL[t] = null; return out; }
+  MNI_FULL[t] = out.length;
+  return out.slice(0, MNI_SHOW[t] || MNI_PAGE);
+};
+function mniMore(t){ MNI_SHOW[t] = (MNI_SHOW[t] || MNI_PAGE) + MNI_PAGE * 2; render(); }
+function mniAll(t){ MNI_SHOW[t] = 1e9; render(); }
+(function(){
+  [["viewCustomers","cust"],["viewSuppliers","sup"],["viewProducts","prd"]].forEach(function(x){
+    var orig = window[x[0]]; if(typeof orig !== "function") return;
+    window[x[0]] = function(){
+      var h = orig.apply(this, arguments), t = x[1], full = MNI_FULL[t];
+      if(!full || typeof h !== "string") return h;
+      var shown = Math.min(MNI_SHOW[t] || MNI_PAGE, full);
+      /* ο μετρητής της εργαλειοθήκης δείχνει τις ΕΜΦΑΝΙΖΟΜΕΝΕΣ — του λέμε και το σύνολο */
+      var bar = '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0">'
+        + '<span class="sub" style="margin:0">Εμφανίζονται ' + shown.toLocaleString("el-GR") + ' από '
+        + full.toLocaleString("el-GR") + ' που ταιριάζουν. Η αναζήτηση ψάχνει σε όλες.</span>'
+        + (shown < full ? '<button class="b ghost sm" onclick="mniMore(\'' + t + '\')">Περισσότερες</button>'
+          + '<button class="b ghost sm" onclick="mniAll(\'' + t + '\')">Όλες (' + full.toLocaleString("el-GR") + ')</button>' : '')
+        + '</div>';
+      var i = h.lastIndexOf("</tbody></table></div>");
+      return i < 0 ? h + bar : h.slice(0, i + 22) + bar + h.slice(i + 22);
+    };
+  });
+})();
 /* Το banner λέει «καμία πραγματική τιμή ή στοιχείο πελάτη». Μετά από εισαγωγή
    αυτό δεν ισχύει πια σε ΑΥΤΟΝ τον υπολογιστή — το λέμε καθαρά. */
 var MNI_BANNER = null;
@@ -1023,7 +1483,7 @@ function mniBanner(){
   var want = real
     ? '<strong>Mockup — Φάση 1.</strong> Περιέχει <strong>πραγματικά δεδομένα από εισαγωγή</strong>, αποθηκευμένα μόνο σε αυτόν τον υπολογιστή. '
       + 'Τα υπόλοιπα είναι δοκιμαστικά. <a href="#" onclick="mniGo();return false" style="color:inherit;font-weight:700;text-decoration:underline">Εισαγωγή δεδομένων</a>'
-    : MNI_BANNER;
+    : MNI_BANNER + ' <a href="#" onclick="mniGo();return false" style="color:inherit;font-weight:700;text-decoration:underline">Φόρτωση πραγματικών δεδομένων</a>';
   if(b.innerHTML !== want) b.innerHTML = want;
 }
 var _mniRender2 = render;
@@ -1090,6 +1550,7 @@ var MNI_DEMO = {
 function mniDemo(kind){
   var type = kind === "bad" ? (MNI.type || "customers") : kind;
   MNI.type = type; MNI.mode = "merge"; MNI.activeOnly = true; MNI.result = null;
+  MNI.grp = "auto"; MNI.skipKinds = true;
   var f = MNI_DEMO[kind]();
   return mniLoadBytes(f.name, new TextEncoder().encode(f.text));
 }
@@ -1272,25 +1733,55 @@ MP.store = '<svg viewBox="0 0 700 150" xmlns="http://www.w3.org/2000/svg" ' + MP
 + '<text x="350" y="144" font-size="8" text-anchor="middle" fill="#8a8a82">Άλλος υπολογιστής ή άλλος browser δεν τα βλέπει — χρειάζεται νέα εισαγωγή εκεί</text>'
 + '</svg>';
 
-MP.items = '<svg viewBox="0 0 700 150" xmlns="http://www.w3.org/2000/svg" ' + MP_F + '>' + MP_DEFS
-+ '<rect width="700" height="150" fill="#FAF9F5"/>'
+MP.items = '<svg viewBox="0 0 700 170" xmlns="http://www.w3.org/2000/svg" ' + MP_F + '>' + MP_DEFS
++ '<rect width="700" height="170" fill="#FAF9F5"/>'
 + '<text x="20" y="22" font-size="9" fill="#8a8a82" ' + MP_C + '>ΣΤΟ ΠΡΟΓΡΑΜΜΑ ΣΑΣ: ΕΙΔΗ</text>'
-+ ['ΕΙΔ-001 · ΓΚΡΙ 2cm ΓΥΑΛΙΣΤΟ','ΕΙΔ-004 · ΓΚΡΙ 3cm ΜΑΤ','ΕΙΔ-007 · ΓΚΡΙ 2cm ΓΥΑΛΙΣΤΟ','ΕΙΔ-002 · ΜΠΕΖ 3cm ΓΥΑΛΙΣΤΟ']
-  .map(function(t, i){ return '<rect x="20" y="' + (32 + i * 26) + '" width="220" height="20" rx="3" fill="#fff" stroke="#ddd"/>'
-    + '<text x="30" y="' + (46 + i * 26) + '" font-size="8.5">' + t + '</text>'; }).join("")
-+ mpArrow(246, 78, 300, 78)
-+ '<text x="258" y="68" font-size="7.5" fill="#D81B8C" font-weight="700">ομάδα</text>'
-+ '<text x="310" y="22" font-size="9" fill="#8a8a82" ' + MP_C + '>ΣΤΗΝ ΕΦΑΡΜΟΓΗ: ΠΡΟΪΟΝ → SKU</text>'
-+ '<rect x="310" y="32" width="370" height="46" rx="4" fill="#fff" stroke="#111"/>'
-+ '<text x="322" y="50" font-size="10" font-weight="700">ΔΟΚΙΜΑΣΤΙΚΟ ΓΚΡΙ</text>'
-+ '<text x="322" y="68" font-size="8.5" fill="#444">SKU: ΕΙΔ-001 · ΕΙΔ-004 · ΕΙΔ-007 · … (τ.μ. / μ.μ., πάχος, τιμή, απόθεμα)</text>'
-+ '<rect x="310" y="86" width="370" height="46" rx="4" fill="#fff" stroke="#111"/>'
-+ '<text x="322" y="104" font-size="10" font-weight="700">ΔΟΚΙΜΑΣΤΙΚΟ ΜΠΕΖ</text>'
-+ '<text x="322" y="122" font-size="8.5" fill="#444">SKU: ΕΙΔ-002 · ΕΙΔ-005 · …</text>'
++ [['021.0.000','ΔΕΜΑΤΙΟΥ ΣΕ Μ3'],['021.0.002','ΔΕΜΑΤΙΟΥ 0,02 ΣΕ Μ2'],['021.0.003','ΔΕΜΑΤΙΟΥ 0,03 ΣΕ Μ2'],
+   ['021.0.012','ΔΕΜΑΤΙΟΥ 0,02 ΣΕ ΜΜ'],['021.0.009','ΔΕΜΑΤΙΟΥ ΣΕ ΤΟΝΝΟΥΣ']]
+  .map(function(t, i){ var y = 32 + i * 26;
+    return '<rect x="20" y="' + y + '" width="236" height="20" rx="3" fill="#fff" stroke="#ddd"/>'
+      + '<text x="28" y="' + (y + 14) + '" font-size="8.5"><tspan font-weight="700" fill="#D81B8C">021</tspan>' + t[0].slice(3) + '</text>'
+      + '<text x="96" y="' + (y + 14) + '" font-size="8.5">' + t[1] + '</text>'; }).join("")
++ mpArrow(262, 90, 312, 90)
++ '<text x="266" y="80" font-size="7.5" fill="#D81B8C" font-weight="700">κωδικός</text>'
++ '<text x="322" y="22" font-size="9" fill="#8a8a82" ' + MP_C + '>ΣΤΗΝ ΕΦΑΡΜΟΓΗ: ΠΡΟΪΟΝ PX-021 → SKU</text>'
++ '<rect x="322" y="32" width="360" height="126" rx="4" fill="#fff" stroke="#111"/>'
++ '<text x="334" y="50" font-size="11" font-weight="700">ΔΕΜΑΤΙΟΥ</text>'
++ [['021.0.000','Όγκος','m³'],['021.0.002','Πλάκα 2 cm','m²'],['021.0.003','Πλάκα 3 cm','m²'],
+   ['021.0.012','Τρέχον μέτρο · 2 cm','μ.μ.'],['021.0.009','Χύμα (τόνοι)','τόνοι']]
+  .map(function(t, i){ var y = 70 + i * 18;
+    return '<text x="334" y="' + y + '" font-size="8.5" font-weight="700">' + t[0] + '</text>'
+      + '<text x="410" y="' + y + '" font-size="8.5">' + t[1] + '</text>'
+      + '<text x="620" y="' + y + '" font-size="8.5" fill="#666">' + t[2] + '</text>'; }).join("")
 + '</svg>';
 
 GUIDE.imp = {cards:[]};
 var G = function(c){ GUIDE.imp.cards.push(c); };
+
+G({ic:"★", t:{el:"Γρήγορα — Φόρτωση των πραγματικών δεδομένων με κωδικό", en:"Quick — Loading the real data with a code"},
+  see:{el:"Στην κορυφή της οθόνης «Εισαγωγή δεδομένων», ένα πλαίσιο «Πραγματικά δεδομένα της εταιρείας» με πεδίο «Κωδικός» και κουμπί «Φόρτωση πραγματικών δεδομένων». Ο ίδιος σύνδεσμος υπάρχει και στο κίτρινο banner κάθε οθόνης.",
+       en:"At the top of the «Data import» screen, a «Company's real data» box with a «Code» field and a «Load real data» button. The same link also sits in the yellow banner on every screen."},
+  does:{el:"Φέρνει μαζί πελάτες, προμηθευτές και είδη από το εμπορικό σας πρόγραμμα, χωρίς να χρειαστεί να έχετε ή να διαλέξετε αρχεία. Τα αρχεία βρίσκονται στο site κρυπτογραφημένα· ανοίγουν μόνο με τον κωδικό. Είναι ο πιο γρήγορος δρόμος για τη δοκιμή — τα Βήματα 1–11 εξηγούν τι γίνεται από πίσω.",
+        en:"It brings in customers, suppliers and items from your business software in one go, without having or choosing any files. The files sit on the site encrypted; only the code opens them. It is the quickest way to run the test — Steps 1–11 explain what happens behind it."},
+  steps:{el:["Ανοίξτε την εφαρμογή από τον σύνδεσμο που σας στάλθηκε και μπείτε με admin / marmara2026.",
+             "Στο κίτρινο banner πατήστε «Φόρτωση πραγματικών δεδομένων» — ή Διαχείριση → Εισαγωγή δεδομένων.",
+             "Στο πλαίσιο «Πραγματικά δεδομένα της εταιρείας» γράψτε τον κωδικό που σας έδωσε ο Απόστολος.",
+             "Πατήστε «Φόρτωση πραγματικών δεδομένων» (ή Enter). Το κουμπί γράφει διαδοχικά «Πελάτες…», «Προμηθευτές…», «Είδη αποθήκης…».",
+             "Στο τέλος, πράσινο μήνυμα με πόσα φορτώθηκαν. Οι δοκιμαστικοί πελάτες και προμηθευτές αντικαθίστανται· τα είδη μπαίνουν δίπλα στα 12 δοκιμαστικά προϊόντα.",
+             "Λάθος κωδικός: κόκκινο μήνυμα «Λάθος κωδικός. Τίποτα δεν άλλαξε.» — δοκιμάστε ξανά.",
+             "Κάθε υπολογιστής φορτώνει τα δικά του: η γραμματεία κάνει το ίδιο στον δικό της.",
+             "Για επιστροφή στα δοκιμαστικά: «Επαναφορά: Πελάτες / Προμηθευτές / Είδη αποθήκης» στο ιστορικό (Βήμα 9)."],
+         en:["Open the app from the link you were sent and sign in with admin / marmara2026.",
+             "In the yellow banner click «Load real data» — or Admin → Data import.",
+             "In the «Company's real data» box type the code Apostolos gave you.",
+             "Click «Load real data» (or Enter). The button reads «Customers…», «Suppliers…», «Stock items…» in turn.",
+             "At the end, a green message says how much was loaded. Sample customers and suppliers are replaced; items go in next to the 12 sample products.",
+             "Wrong code: red message «Wrong code. Nothing changed.» — try again.",
+             "Each computer loads its own copy: the office does the same on theirs.",
+             "To return to the sample data: «Restore: Customers / Suppliers / Stock items» in the history (Step 9)."]},
+  res:{el:"Η εφαρμογή δείχνει τους δικούς σας πελάτες, προμηθευτές και υλικά — έτοιμη για τη δοκιμή.",
+       en:"The app shows your own customers, suppliers and materials — ready for the test."},
+  go:"mniGo('customers')"});
 
 G({ic:"①", t:{el:"Βήμα 1 — Πού βρίσκεται", en:"Step 1 — Where to find it"},
   pic:MP.where, picCap:{el:"Δύο δρόμοι: από το αριστερό μενού της Διαχείρισης, ή από το κουμπί δίπλα στο «+ Νέος» κάθε λίστας.",
@@ -1323,17 +1814,19 @@ G({ic:"②", t:{el:"Βήμα 2 — Ετοιμάστε το αρχείο στο �
   steps:{el:["Στη λίστα πελατών του προγράμματος, κάντε ορατές τις στήλες: Κωδικός, Επωνυμία, ΑΦΜ, ΔΟΥ, Επάγγελμα, Διεύθυνση, Πόλη, Τ.Κ., Τηλέφωνο, Κινητό, Email, Κατηγορία, Ενεργός/Ανενεργός, Υπόλοιπο.",
              "Για προμηθευτές: οι ίδιες στήλες, και IBAN αν υπάρχει.",
              "Για είδη: Κωδικός, Περιγραφή, Ομάδα, Μονάδα μέτρησης, Πάχος, Φινίρισμα, Τιμή πώλησης, Τιμή κόστους, ΦΠΑ, Απόθεμα, Ενεργό, Barcode.",
-             "Η στήλη «Ενεργός» είναι σημαντική: χωρίς αυτή μπαίνουν και οι πελάτες που έχετε χρόνια να δείτε.",
+             "Η στήλη «Ενεργός» είναι σημαντική: χωρίς αυτή μπαίνουν και οι πελάτες που έχετε χρόνια να δείτε. Αν σχεδόν όλοι είναι «Ναι» — όπως στη σημερινή σας εξαγωγή — ζητήστε και στήλη «Τελευταία κίνηση» ή «Τζίρος».",
              "Εξάγετε σε Excel (.xlsx). Αν το πρόγραμμα δίνει CSV, JSON ή XML, κι αυτά διαβάζονται.",
-             "Αν βγάλει παλιό Excel (.xls), ανοίξτε το στο Excel και «Αποθήκευση ως» → «Βιβλίο εργασίας Excel (.xlsx)».",
+             "Το παλιό Excel (.xls, 97–2003) — αυτό που βγάζει το πρόγραμμά σας, π.χ. «ΠΕΛΑΤΕΣ.xls» — διαβάζεται κατευθείαν, χωρίς μετατροπή. Μόνο Excel 95 και παλιότερο θέλει «Αποθήκευση ως» → .xlsx.",
+             "Αν η λίστα ειδών δεν έχει τιμή και απόθεμα (όπως η σημερινή), τα είδη μπαίνουν με τιμή 0. Οι τιμές συμπληρώνονται μετά στο προϊόν, ή έρχονται με νέα εξαγωγή που τις περιέχει.",
              "Ανοίξτε το αρχείο μία φορά πριν το φέρετε: η πρώτη γραμμή πρέπει να έχει ονόματα στηλών και από κάτω να φαίνονται πραγματικές επωνυμίες.",
              "Αν το πρόγραμμα δίνει κάποια άλλη μορφή, στείλτε μας ένα μικρό δείγμα — προστίθεται χωρίς να αλλάξει τίποτα άλλο."],
          en:["In the software's customer list, make these columns visible: Code, Name, VAT no., Tax office, Occupation, Address, City, Postcode, Phone, Mobile, Email, Category, Active/Inactive, Balance.",
              "For suppliers: the same columns, plus IBAN if available.",
              "For items: Code, Description, Group, Unit, Thickness, Finish, Sale price, Cost price, VAT rate, Stock, Active, Barcode.",
-             "The «Active» column matters: without it, customers you have not seen in years come in too.",
+             "The «Active» column matters: without it, customers you have not seen in years come in too. If nearly all say «Yes» — as in your current export — ask for a «Last transaction» or «Turnover» column as well.",
              "Export to Excel (.xlsx). If the software gives CSV, JSON or XML, those are read as well.",
-             "If it produces old Excel (.xls), open it in Excel and «Save as» → «Excel Workbook (.xlsx)».",
+             "Old Excel (.xls, 97–2003) — what your software produces, e.g. «ΠΕΛΑΤΕΣ.xls» — is read directly, with no conversion. Only Excel 95 and older needs «Save as» → .xlsx.",
+             "If the item list has no price or stock (like the current one), items come in at price 0. Prices are filled in later on the product, or arrive with a new export that includes them.",
              "Open the file once before bringing it in: the first row must hold column names, with real company names below.",
              "If the software offers some other format, send us a small sample — it is added without changing anything else."]},
   res:{el:"Ένα αρχείο με ονόματα στηλών στην πρώτη γραμμή και μία εγγραφή σε κάθε γραμμή από κάτω.",
@@ -1401,16 +1894,20 @@ G({ic:"⑤", t:{el:"Βήμα 5 — Τι θα μπει: οι έλεγχοι", en:
              "«Παραλείπονται»: χωρίς όνομα + διπλές + ανενεργές. Δοκιμαστικό: 15 = 3 χωρίς όνομα, 2 διπλές, 10 ανενεργές. Κόκκινο πλαίσιο σημαίνει «ρίξτε μια ματιά», όχι λάθος.",
              "Διπλή θεωρείται μια γραμμή με ίδιο κωδικό — ή, αν δεν υπάρχει κωδικός, με ίδιο σωστό ΑΦΜ ή ίδια επωνυμία. Μπαίνει μόνο η πρώτη.",
              "«Προς έλεγχο»: ΑΦΜ με λάθος ψηφίο ελέγχου και email χωρίς «@». Δοκιμαστικό: 5 = 2 ΑΦΜ + 3 email. ΜΠΑΙΝΟΥΝ κανονικά — απλώς διορθώστε τα αργότερα στην καρτέλα.",
+             "«Χωρίς ΑΦΜ»: εμφανίζεται μόνο όταν υπάρχουν — κενό, 000000000 ή σύντομος αριθμός όπως «123». Μπαίνουν χωρίς ΑΦΜ. Στη σημερινή σας εξαγωγή πελατών είναι περίπου 1.650.",
+             "Κάτω από τους δείκτες γράφει πόσες εγγραφές έχουν ΑΦΜ που υπάρχει ήδη σε άλλον κωδικό. Μπαίνουν χωριστά — είναι πιθανόν η ίδια εταιρεία δύο φορές στο πρόγραμμά σας.",
              "Στον πίνακα από κάτω, όποια τιμή θέλει έλεγχο έχει δίπλα κόκκινη ένδειξη «έλεγχος».",
-             "«Μόνο ενεργοί»: αναμμένο από προεπιλογή. Αν το σβήσετε, μπαίνουν και οι ανενεργοί — στο δοκιμαστικό ο αριθμός γίνεται 77. Εμφανίζεται μόνο αν το αρχείο έχει στήλη Ενεργός/Ανενεργός.",
+             "«Μόνο ενεργοί»: αναμμένο από προεπιλογή. Αν το σβήσετε, μπαίνουν και οι ανενεργοί — στο δοκιμαστικό ο αριθμός γίνεται 77. Εμφανίζεται μόνο αν το αρχείο έχει στήλη Ενεργός/Ανενεργός. Αν σχεδόν όλοι είναι ενεργοί, μια πορτοκαλί σημείωση το λέει.",
              "Αν γράφει «Αντιστοιχίστε τη στήλη που έχει την Επωνυμία», γυρίστε στο Βήμα 4."],
          en:["«File rows»: all rows found under the headings. Sample file: 82.",
              "«Will import»: rows that will be saved. Below it: how many are new and how many are updates. Sample: 67, all new.",
              "«Skipped»: no name + duplicates + inactive. Sample: 15 = 3 without a name, 2 duplicates, 10 inactive. A red frame means «take a look», not an error.",
              "A duplicate is a row with the same code — or, with no code, the same valid VAT number or the same name. Only the first one goes in.",
              "«To check»: VAT numbers with a wrong check digit and emails without «@». Sample: 5 = 2 VAT + 3 email. They ARE imported — just fix them later on the card.",
+             "«No VAT no.»: appears only when there are some — blank, 000000000 or a short number such as «123». They come in without a VAT number. Your current customer export has about 1,650.",
+             "Below the indicators it says how many records carry a VAT number already used by another code. They come in separately — probably the same company twice in your software.",
              "In the table below, any value needing a check carries a red «check» tag beside it.",
-             "«Active only»: on by default. Switch it off and inactive customers come in too — in the sample the number becomes 77. It appears only if the file has an Active/Inactive column.",
+             "«Active only»: on by default. Switch it off and inactive customers come in too — in the sample the number becomes 77. It appears only if the file has an Active/Inactive column. If nearly everyone is active, an orange note says so.",
              "If it says «Match the column that holds the Name», go back to Step 4."]},
   res:{el:"Ξέρετε ακριβώς πόσες εγγραφές θα μπουν και ποιες θέλουν διόρθωση — χωρίς να έχει αλλάξει ακόμα τίποτα.",
        en:"You know exactly how many records will be imported and which need fixing — with nothing changed yet."},
@@ -1451,6 +1948,8 @@ G({ic:"⑦", t:{el:"Βήμα 7 — Μετά την εισαγωγή", en:"Step 7
   steps:{el:["Πατήστε «Άνοιγμα: Πελάτες». Η λίστα δείχνει τους πελάτες σας.",
              "Ο κωδικός τους ξεκινά με «CL-» και συνεχίζει με τον κωδικό του προγράμματός σας (π.χ. CL-ΔΟΚ-001). Προμηθευτές: «SL-». Προϊόντα: «PX-».",
              "Στη στήλη «Προέλευση» γράφει «Εισαγωγή». Φίλτρο «Προέλευση: Εισαγωγή» τους δείχνει μόνους τους.",
+             "Με χιλιάδες πελάτες η λίστα δείχνει τους πρώτους 150, με κουμπιά «Περισσότερες» και «Όλες». Η αναζήτηση ψάχνει πάντα σε όλους.",
+             "Αν το αρχείο είχε «Επωνυμία πωλητή» και «Ημ/νία καταχώρησης», μπαίνουν στον «Υπεύθυνο πωλητή» και στην «Πρώτη επαφή» της καρτέλας.",
              "Ανοίξτε έναν: η καρτέλα έχει όσα στοιχεία είχε το αρχείο, και στο «Ιστορικό» μια εγγραφή «Εισαγωγή — Από [όνομα αρχείου]».",
              "Διορθώστε ό,τι χρειάζεται με «✎ Επεξεργασία» — π.χ. το ΑΦΜ με την κόκκινη ένδειξη — και «✓ Αποθήκευση». Η αλλαγή σας ΔΕΝ χάνεται αν αργότερα ξαναφέρετε το ίδιο αρχείο· ενημερώνονται μόνο τα πεδία που έχει το αρχείο.",
              "Φέρνοντας ξανά το ίδιο αρχείο με «Προσθήκη», ο δείκτης γράφει «0 νέες · 67 ενημερώσεις» — δεν διπλασιάζεται τίποτα.",
@@ -1458,6 +1957,8 @@ G({ic:"⑦", t:{el:"Βήμα 7 — Μετά την εισαγωγή", en:"Step 7
          en:["Click «Open: Customers». The list shows your customers.",
              "Their code starts with «CL-» followed by your software's code (e.g. CL-ΔΟΚ-001). Suppliers: «SL-». Products: «PX-».",
              "The «Source» column reads «Import». The «Source: Import» filter shows them on their own.",
+             "With thousands of customers the list shows the first 150, with «More» and «All» buttons. Search always looks through all of them.",
+             "If the file had «Salesperson» and «Registration date», they go into the card's «Sales owner» and «First contact».",
              "Open one: the card holds whatever the file had, and its «History» has an entry «Import — From [file name]».",
              "Fix what is needed with «✎ Edit» — e.g. the VAT number with the red tag — then «✓ Save». Your change is NOT lost if you later bring the same file again; only the fields in the file are updated.",
              "Bringing the same file again with «Add», the indicator reads «0 new · 67 updates» — nothing is duplicated.",
@@ -1466,31 +1967,37 @@ G({ic:"⑦", t:{el:"Βήμα 7 — Μετά την εισαγωγή", en:"Step 7
        en:"The app works with your own customers."},
   go:"goSec('crm','Πελάτες')"});
 
-G({ic:"⑧", t:{el:"Βήμα 8 — Είδη αποθήκης: ομάδες και SKU", en:"Step 8 — Stock items: groups and SKUs"},
-  pic:MP.items, picCap:{el:"Η «Ομάδα» του προγράμματός σας γίνεται προϊόν· κάθε είδος γίνεται SKU από κάτω.",
-                        en:"Your software's «Group» becomes a product; each item becomes a SKU underneath."},
-  see:{el:"Ίδια οθόνη με τους πελάτες, με το κουμπί «Είδη αποθήκης» επιλεγμένο. Στην αντιστοίχιση υπάρχουν πεδία όπως «Ομάδα (γίνεται προϊόν)», «Μονάδα μέτρησης», «Πάχος», «Τιμή πώλησης», «Απόθεμα».",
-       en:"The same screen as customers, with «Stock items» selected. The matching offers fields such as «Group (becomes a product)», «Unit», «Thickness», «Sale price», «Stock»."},
-  does:{el:"Στην εφαρμογή ένα προϊόν (π.χ. Titanium Grey) έχει πολλές παραλλαγές — πάχος, φινίρισμα, μορφή. Τα προγράμματα συνήθως κρατούν κάθε παραλλαγή ως ξεχωριστό είδος. Η εισαγωγή τα ξαναμαζεύει: ίδια ομάδα → ίδιο προϊόν.",
-        en:"In the app one product (e.g. Titanium Grey) has many variants — thickness, finish, form. Business software usually keeps each variant as a separate item. The import regroups them: same group → same product."},
-  steps:{el:["Πατήστε «Είδη αποθήκης» και φέρτε το αρχείο — ή «Δοκιμαστικό αρχείο»: 60 είδη σε 3 ομάδες, 6 ανενεργά.",
-             "Ελέγξτε ότι η στήλη με την ομάδα δείχνει στο «Ομάδα (γίνεται προϊόν)». Αν τη βάλετε «— να μη μπει —», κάθε είδος γίνεται δικό του προϊόν.",
-             "Μονάδες: «τ.μ.», «τμ», «m2» γίνονται m²· «μ.μ.», «τρεχ.» γίνονται μ.μ.· «τεμ.», «τμχ» γίνονται τεμ.",
-             "Τιμές με ελληνική υποδιαστολή («40,50») διαβάζονται σωστά.",
-             "Εισαγωγή. Δοκιμαστικό: μπαίνουν 54 SKU σε 3 νέα προϊόντα.",
-             "Διαχείριση → Προϊόντα: τα νέα προϊόντα έχουν κωδικό «PX-». Τα 12 δικά μας μένουν όπως είναι.",
-             "Τα νέα SKU εμφανίζονται αμέσως στη λίστα υλικών του δελτίου παραγγελίας.",
-             "Τεχνικά χαρακτηριστικά (πυκνότητα, αντοχές) ΔΕΝ έρχονται από το πρόγραμμα — συμπληρώνονται στο προϊόν → «Τεχνικά»."],
-         en:["Click «Stock items» and bring the file — or «Sample file»: 60 items in 3 groups, 6 inactive.",
-             "Check that the group column points to «Group (becomes a product)». Set it to «— do not import —» and each item becomes its own product.",
-             "Units: «τ.μ.», «τμ», «m2» become m²; «μ.μ.», «τρεχ.» become running metres; «τεμ.», «τμχ» become pieces.",
-             "Prices with a Greek decimal comma («40,50») are read correctly.",
-             "Import. Sample: 54 SKUs go into 3 new products.",
-             "Admin → Products: the new products carry a «PX-» code. Our 12 stay as they are.",
-             "The new SKUs appear at once in the material list of the order sheet.",
-             "Technical data (density, strengths) do NOT come from the software — fill them in on the product → «Technical»."]},
-  res:{el:"Τα είδη σας είναι διαθέσιμα σε δελτία και προσφορές, ομαδοποιημένα όπως τα σκέφτεστε.",
-       en:"Your items are available in sheets and quotations, grouped the way you think of them."},
+G({ic:"⑧", t:{el:"Βήμα 8 — Είδη αποθήκης: από κωδικούς σε προϊόντα", en:"Step 8 — Stock items: from codes to products"},
+  pic:MP.items, picCap:{el:"Ο κωδικός «021.0.002» → υλικό 021 (ΔΕΜΑΤΙΟΥ). Η περιγραφή «0,02 ΣΕ Μ2» → πλάκα 2 cm, m².",
+                        en:"Code «021.0.002» → material 021 (ΔΕΜΑΤΙΟΥ). Description «0,02 ΣΕ Μ2» → 2 cm slab, m²."},
+  see:{el:"Ίδια οθόνη με τους πελάτες, με το κουμπί «Είδη αποθήκης» επιλεγμένο. Στο «Τι θα μπει» υπάρχει δείκτης «Προϊόντα»· στο «Πώς μπαίνουν» η επιλογή «Ομαδοποίηση σε προϊόντα» και ο διακόπτης «Χωρίς λογιστικά έξοδα και υπηρεσίες».",
+       en:"The same screen as customers, with «Stock items» selected. «What will be imported» shows a «Products» indicator; «How they go in» offers «Group into products» and the «Without accounting expenses and services» switch."},
+  does:{el:"Στην εφαρμογή ένα προϊόν (π.χ. ΔΕΜΑΤΙΟΥ) έχει πολλές παραλλαγές — πάχος, μορφή, μονάδα. Το πρόγραμμά σας κρατάει κάθε παραλλαγή ως ξεχωριστό είδος, με κωδικό όπως «021.0.002»: το πρώτο κομμάτι είναι το υλικό. Η εισαγωγή τα ξαναμαζεύει σε προϊόντα και διαβάζει πάχος και μονάδα από την περιγραφή.",
+        en:"In the app one product (e.g. ΔΕΜΑΤΙΟΥ) has many variants — thickness, form, unit. Your software keeps each variant as a separate item, with a code like «021.0.002»: the first part is the material. The import regroups them into products and reads thickness and unit from the description."},
+  steps:{el:["Πατήστε «Είδη αποθήκης» και φέρτε το αρχείο (π.χ. «ΠΡΟΙΟΝΤΑ.xls»).",
+             "Στο «Ποια στήλη είναι τι» ελέγξτε: «Κωδικός» → Κωδικός είδους, «Περιγραφή» → Περιγραφή, «Λογ. χαρ/μός» → Λογιστικός χαρακτηρισμός.",
+             "«Ομαδοποίηση σε προϊόντα» — «Αυτόματα»: αν οι κωδικοί έχουν τελείες (021.0.002), ομαδοποιεί από το πρώτο κομμάτι του κωδικού· αλλιώς από τη στήλη «Ομάδα». Από κάτω γράφει τι επέλεξε και πόσα προϊόντα βγαίνουν.",
+             "Στη δική σας λίστα η στήλη «Ομάδα» γράφει Προϊόν / Εμπόρευμα — δεν είναι υλικό, γι' αυτό η αυτόματη επιλογή είναι ο κωδικός.",
+             "Στην προεπισκόπηση, η στήλη «→ Προϊόν» δείχνει σε ποιο προϊόν πάει κάθε είδος, και η «Μορφή» τι διάβασε: «Πλάκα 2 cm», «Τρέχον μέτρο · 3 cm», «Όγκος», «Χύμα (τόνοι)», «Τεμάχιο».",
+             "Μονάδες από την περιγραφή: «ΣΕ Μ2» → m², «ΣΕ ΜΜ» → μ.μ., «ΣΕ Μ3» → m³, «ΣΕ ΤΟΝΝΟΥΣ» → τόνοι, «ΣΕ ΤΕΜ» → τεμ. Πάχος: «0,02» → 2 cm· «0,04 & ΑΝΩ» → 4+ cm.",
+             "«Χωρίς λογιστικά έξοδα και υπηρεσίες»: αναμμένο. Αφήνει έξω είδη που είναι έξοδα (ΧΔΕΦ) ή υπηρεσίες — δεν είναι μάρμαρα προς πώληση.",
+             "Εισαγωγή. Διαχείριση → Προϊόντα: τα νέα προϊόντα έχουν κωδικό «PX-» (π.χ. PX-021) και μέσα τους τα είδη ως SKU με τον δικό σας κωδικό.",
+             "Χωρίς δικό σας αρχείο: «Δοκιμαστικό αρχείο» — 60 είδη σε 3 ομάδες, 6 ανενεργά → 54 SKU σε 3 προϊόντα (εκεί οι κωδικοί δεν έχουν τελείες, οπότε ομαδοποιεί από τη στήλη «Ομάδα»).",
+             "Αν η λίστα δεν έχει τιμές, τα SKU μπαίνουν με τιμή 0. Τεχνικά χαρακτηριστικά (πυκνότητα, αντοχές) δεν έρχονται ποτέ από το πρόγραμμα — συμπληρώνονται στο προϊόν → «Τεχνικά».",
+             "Τα 12 δοκιμαστικά προϊόντα μένουν. Όπου υπάρχει και πραγματικό (π.χ. ΔΕΜΑΤΙΟΥ), θα φαίνονται και τα δύο μέχρι να οριστεί η αντικατάσταση."],
+         en:["Click «Stock items» and bring the file (e.g. «ΠΡΟΙΟΝΤΑ.xls»).",
+             "Under «Which column is what» check: «Code» → Item code, «Description» → Description, «Acct. type» → Accounting classification.",
+             "«Group into products» — «Automatic»: if the codes contain dots (021.0.002), it groups by the first part of the code; otherwise by the «Group» column. Below, it states what it chose and how many products result.",
+             "In your list the «Group» column says Product / Merchandise — it is not a material, which is why the automatic choice is the code.",
+             "In the preview, the «→ Product» column shows which product each item joins, and «Form» what was read: «Slab 2 cm», «Running metre · 3 cm», «Block», «Bulk (tonnes)», «Piece».",
+             "Units from the description: «ΣΕ Μ2» → m², «ΣΕ ΜΜ» → running metres, «ΣΕ Μ3» → m³, «ΣΕ ΤΟΝΝΟΥΣ» → tonnes, «ΣΕ ΤΕΜ» → pieces. Thickness: «0,02» → 2 cm; «0,04 & ΑΝΩ» → 4+ cm.",
+             "«Without accounting expenses and services»: on. It leaves out items that are expenses or services — they are not stone for sale.",
+             "Import. Admin → Products: the new products carry a «PX-» code (e.g. PX-021) and hold the items as SKUs with your own code.",
+             "Without a file of your own: «Sample file» — 60 items in 3 groups, 6 inactive → 54 SKUs in 3 products (there the codes have no dots, so it groups by the «Group» column).",
+             "If the list has no prices, SKUs come in at price 0. Technical data (density, strengths) never comes from the software — fill it in on the product → «Technical».",
+             "The 12 sample products stay. Where a real one also exists (e.g. ΔΕΜΑΤΙΟΥ), both will show until replacement is defined."]},
+  res:{el:"Τα είδη σας είναι διαθέσιμα σε δελτία και προσφορές, ομαδοποιημένα ανά υλικό, με πάχος και μονάδα.",
+       en:"Your items are available in sheets and quotations, grouped by material, with thickness and unit."},
   go:"mniGo('products')"});
 
 G({ic:"⑨", t:{el:"Βήμα 9 — Ιστορικό και επαναφορά", en:"Step 9 — History and restore"},
@@ -1546,7 +2053,7 @@ G({ic:"⑪", t:{el:"Βήμα 11 — Όταν κάτι δεν πάει καλά",
   does:{el:"Κάθε πρόβλημα σταματάει ΠΡΙΝ αλλάξει οτιδήποτε. Τα δοκιμαστικά δεν σβήνονται ποτέ εξαιτίας λάθος αρχείου.",
         en:"Every problem stops BEFORE anything changes. The sample data is never erased because of a wrong file."},
   steps:{el:["«Το αρχείο έχει μόνο τον εσωτερικό κωδικό κάθε εγγραφής»: η εξαγωγή έγινε χωρίς στήλες (ό,τι έγινε στις 09/09). Γυρίστε στο Βήμα 2. Δοκιμάστε το με το κουμπί «Αρχείο χωρίς στήλες».",
-             "«Παλιά μορφή Excel (.xls)»: ανοίξτε το στο Excel και αποθηκεύστε ως .xlsx ή CSV.",
+             "«Πολύ παλιά μορφή Excel (95 ή παλιότερη)» ή «Το αρχείο .xls φαίνεται κατεστραμμένο»: ανοίξτε το στο Excel και αποθηκεύστε ως .xlsx. (Το κανονικό .xls 97–2003 διαβάζεται κατευθείαν.)",
              "«Δεν βρέθηκε γραμμή επικεφαλίδων»: το αρχείο δεν έχει ονόματα στηλών. Ξαναβγάλτε το με επικεφαλίδες.",
              "«Αντιστοιχίστε τη στήλη που έχει την Επωνυμία»: στο Βήμα 4 διαλέξτε ποια στήλη είναι η επωνυμία.",
              "«Δεν χώρεσε — τίποτα δεν άλλαξε»: τα δεδομένα ξεπερνούν τον χώρο του browser. Ανάψτε «Μόνο ενεργοί» ή αφαιρέστε φωτογραφίες.",
@@ -1554,7 +2061,7 @@ G({ic:"⑪", t:{el:"Βήμα 11 — Όταν κάτι δεν πάει καλά",
              "Ελληνικά που φαίνονται σαν «ÅðùíõìÝá»: σπάνιο — στείλτε μας το αρχείο. (Τα CSV σε κωδικοποίηση Windows-1253 διαβάζονται ήδη αυτόματα.)",
              "Οποιοδήποτε άλλο μήνυμα: κάντε μια φωτογραφία της οθόνης και στείλτε την μαζί με το αρχείο."],
          en:["«The file holds only the internal code of each record»: the export ran without columns (what happened on 09/09). Go back to Step 2. Try it with the «File without columns» button.",
-             "«Old Excel format (.xls)»: open it in Excel and save as .xlsx or CSV.",
+             "«Very old Excel format (95 or older)» or «The .xls file seems damaged»: open it in Excel and save as .xlsx. (Ordinary .xls 97–2003 is read directly.)",
              "«No heading row found»: the file has no column names. Export it again with headings.",
              "«Match the column that holds the Name»: in Step 4 choose which column is the name.",
              "«Did not fit — nothing changed»: the data exceeds the browser's storage. Switch on «Active only» or remove photos.",
@@ -1616,6 +2123,9 @@ if(GUIDE.glossary) GUIDE.glossary.push(
   {w:{el:"Αντικατάσταση δοκιμαστικών", en:"Replacing sample data"},
    d:{el:"Τρόπος εισαγωγής που βγάζει τους ψεύτικους πελάτες ή προμηθευτές μαζί με τις ψεύτικες κινήσεις τους, ώστε να μείνουν μόνο οι πραγματικοί. Αναιρείται με «Επαναφορά».",
       en:"An import mode that removes the fake customers or suppliers with their fake transactions, so only real ones remain. Undone with «Restore»."}},
+  {w:{el:"Ομαδοποίηση από τον κωδικό", en:"Grouping by code"},
+   d:{el:"Στα είδη με κωδικό όπως «021.0.002», το πρώτο κομμάτι («021») είναι το υλικό. Όλα τα είδη με το ίδιο πρώτο κομμάτι γίνονται ένα προϊόν με πολλά SKU.",
+      en:"For items coded like «021.0.002», the first part («021») is the material. All items sharing that first part become one product with many SKUs."}},
   {w:{el:"Ψηφίο ελέγχου ΑΦΜ", en:"VAT check digit"},
    d:{el:"Το τελευταίο ψηφίο του ΑΦΜ προκύπτει από τα οκτώ πρώτα. Αν δεν ταιριάζει, το ΑΦΜ έχει γραφτεί λάθος — η εφαρμογή το σημαδεύει «έλεγχος».",
       en:"The last digit of a Greek VAT number is derived from the first eight. If it does not match, the number was mistyped — the app flags it «check»."}}
