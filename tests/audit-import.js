@@ -347,6 +347,12 @@ function cardTabs(w, go, setter){
     P = J(w, "(function(){var p=mniPlan();return {rows:MNI.rows.length,n:p.recs.length,noVat:p.noVat,bad:p.badVat,same:p.sameVat}})()");
     ok(P.rows === 4375 && P.n === 4373 && P.noVat === 1654 && P.bad === 6 && P.same === 17, "ΠΕΛΑΤΕΣ.xls → " + JSON.stringify(P));
     w.mniRun();
+    w.goSec("crm", "Πελάτες");
+    v = w.document.getElementById("view").innerHTML;
+    ok(/4\.381<\/td><td[^>]*>πελάτες στη λίστα<\/td><td[^>]*>4\.373 από το αρχείο «ΠΕΛΑΤΕΣ\.xls» \+ 8 δοκιμαστικοί/.test(v)
+       && /4\.375<\/td>[\s\S]*4\.373 μπήκαν · έξω: 2 ανενεργοί/.test(v) && /1\.654<\/td>/.test(v)
+       && /Γιατί 4\.373 και όχι οι 50–150[\s\S]*3\.812 καταχωρήθηκαν την ίδια μέρα \(28\/12\/2021\)/.test(v),
+       "πραγματικοί πελάτες: 4.381 = 4.373 + 8 · 4.375 = 4.373 + 2 · 1.654 χωρίς ΑΦΜ · 3.812 στις 28/12/2021");
     await rl("ΠΡΟΜΗΘΕΥΤΕΣ.xls", "suppliers");
     P = J(w, "(function(){var p=mniPlan();return {rows:MNI.rows.length,n:p.recs.length}})()");
     ok(P.rows === 1818 && P.n === 1817, "ΠΡΟΜΗΘΕΥΤΕΣ.xls → " + JSON.stringify(P));
@@ -358,6 +364,16 @@ function cardTabs(w, go, setter){
     const u = J(w, "(function(){var c={};allVariants().forEach(function(x){if(x.v.imp)c[x.v.unit]=(c[x.v.unit]||0)+1});return c})()");
     ok(u["m²"] === 1085 && u["μ.μ."] === 797 && u["m³"] === 104, "μονάδες ειδών: " + JSON.stringify(u));
     ok(J(w, "find(DATA.products,'code','PX-021').name") === "ΔΕΜΑΤΙΟΥ", "PX-021 = ΔΕΜΑΤΙΟΥ");
+    w.goSec("admin", "Προϊόντα");
+    v = w.document.getElementById("view").innerHTML;
+    ok(/383<\/td><td[^>]*>προϊόντα \(υλικά\) στη λίστα<\/td><td[^>]*>371 υλικά από το πρόγραμμά σας \+ 12 πλήρη πρότυπα/.test(v)
+       && /2\.497<\/td>[\s\S]*2\.466 είδη του «ΠΡΟΙΟΝΤΑ\.xls» \+ 31 των προτύπων/.test(v)
+       && /2\.655<\/td>[\s\S]*2\.466 μπήκαν ως SKU · έξω: 187 λογιστικά έξοδα και υπηρεσίες[^·]*· 2 χωρίς περιγραφή/.test(v),
+       "πραγματικά: 383 = 371 + 12 · 2.497 = 2.466 + 31 · 2.655 = 2.466 + 187 + 2");
+    ok(/379<\/td><td[^>]*>χωρίς CE marking \(κάρτα πάνω\)<\/td><td[^>]*>371 υλικά σας \(το αρχείο δεν περιέχει CE\) \+ 8 πρότυπα/.test(v)
+       && /αξία αποθέματος \(κάρτα πάνω\)<\/td><td[^>]*>όλη από τα 12 πρότυπα/.test(v), "κάρτες πάνω: 379 χωρίς CE = 371 + 8 · αξία αποθέματος μόνο από τα πρότυπα");
+    ok(/Γιατί 371 και όχι 2\.466;[\s\S]*ΔΕΜΑΤΙΟΥ<\/strong> έχει 28 είδη \(021\.0\.000 … 021\.1\.\d{3}\)/.test(v), "παράδειγμα ΔΕΜΑΤΙΟΥ: 28 είδη → 1 προϊόν");
+    ok(w.document.getElementById("side").innerHTML.includes('>371+12</span>'), "μενού: «371+12»");
     const size = J(w, "(localStorage.getItem(STORE_KEY)||'').length");
     ok(size < 2500000, "και τα τρία χωράνε άνετα: " + size.toLocaleString("el-GR") + " χαρακτήρες");
     renderAll(w, "με τα πραγματικά δεδομένα");
@@ -409,8 +425,43 @@ function cardTabs(w, go, setter){
     ok(J(w, "DATA.customers.length") === 1197 && J(w, "allVariants().filter(x=>x.v.imp).length") === 2360 && J(w, "DATA.products.filter(p=>p.imp).length") === 4,
        "δεύτερη φόρτωση: τίποτα δεν διπλασιάζεται");
     renderAll(w, "μετά τη φόρτωση με κωδικό");
+    /* Φ28ε — «Τι μετράμε» */
+    const side = () => w.document.getElementById("side").innerHTML;
+    w.goSec("admin", "Προϊόντα");
+    v = w.document.getElementById("view").innerHTML;
+    ok(v.includes("Τι μετράμε σε αυτή τη σελίδα") && /16<\/td><td[^>]*>προϊόντα \(υλικά\) στη λίστα<\/td><td[^>]*>4 υλικά από το πρόγραμμά σας \+ 12 πλήρη πρότυπα/.test(v),
+       "προϊόντα: «16 = 4 υλικά + 12 πρότυπα»");
+    ok(/2\.391<\/td><td[^>]*>κωδικοί \(SKU\)[^<]*<\/td><td[^>]*>2\.360 είδη του «items\.xlsx» \+ 31 των προτύπων/.test(v), "SKU: «2.391 = 2.360 + 31»");
+    ok(/2\.655<\/td><td[^>]*>γραμμές στο αρχείο<\/td><td[^>]*>2\.360 μπήκαν ως SKU · έξω: 295 ανενεργά/.test(v), "γραμμές αρχείου: «2.655 = 2.360 + 295 ανενεργά»");
+    ok(/Γιατί 4 και όχι 2\.360;/.test(v) && v.includes("0 με τιμή") === false && /2\.360 είδη|είδη \(/.test(v), "εξήγηση «γιατί 4 και όχι 2.360» με παράδειγμα");
+    ok((v.match(/>πρότυπο</g) || []).length === 12, "12 προϊόντα με ένδειξη «πρότυπο» — κανένα κρυμμένο");
+    const sideAdmin = side();
+    w.goSec("crm", "Πελάτες");
+    ok(sideAdmin.includes('>4+12</span>') && side().includes('>1.197</span>') && side().includes('>25</span>'), "μενού: «4+12» προϊόντα · 1.197 πελάτες · 25 προμηθευτές");
+    w.goSec("admin", "Προϊόντα");
+    w.eval("MNI.prdSrc='imp'; render()");
+    ok((w.document.getElementById("view").innerHTML.match(/onclick="openProd\(/g) || []).length === 4, "«Από το πρόγραμμα»: 4");
+    w.eval("MNI.prdSrc='demo'; render()");
+    ok((w.document.getElementById("view").innerHTML.match(/onclick="openProd\(/g) || []).length === 12, "«Πρότυπα»: 12");
+    w.eval("MNI.prdSrc='all'; render()");
+    ok((w.document.getElementById("view").innerHTML.match(/onclick="openProd\(/g) || []).length === 16, "«Όλα»: 16 — προεπιλογή, τίποτα κρυφό");
+    w.goSec("crm", "Πελάτες");
+    v = w.document.getElementById("view").innerHTML;
+    ok(/1\.197<\/td><td[^>]*>πελάτες στη λίστα<\/td><td[^>]*>1\.197 από το αρχείο «customers_biff8\.xls» · οι δοκιμαστικοί αντικαταστάθηκαν/.test(v), "πελάτες: «1.197 από customers_biff8.xls»");
+    ok(/1\.200<\/td><td[^>]*>γραμμές στο αρχείο<\/td><td[^>]*>1\.197 μπήκαν · έξω: 3 ανενεργοί/.test(v) && /152<\/td><td[^>]*>πελάτες χωρίς ΑΦΜ/.test(v), "πελάτες: «1.200 = 1.197 + 3 ανενεργοί» · «152 χωρίς ΑΦΜ»");
+    ok(v.includes("Γιατί 1.197 και όχι οι 50–150") === false && v.includes("Τζίρος, υπόλοιπο και ληξιπρόθεσμα"), "σημείωση για τζίρο/υπόλοιπο (όχι «ίδια μέρα» όταν δεν ισχύει)");
+    w.goSec("crm", "Προμηθευτές");
+    ok(w.document.getElementById("view").innerHTML.includes("25 από το αρχείο «suppliers.csv»"), "προμηθευτές: «25 από suppliers.csv»");
+    w.eval("goCust(DATA.customers[0].id)");
+    ok(!w.document.getElementById("view").innerHTML.includes("Τι μετράμε σε αυτή τη σελίδα"), "το πλαίσιο δεν μπαίνει μέσα σε καρτέλα");
     w.mniRevert("products"); w.mniRevert("suppliers"); w.mniRevert("customers");
     ok(J(w, "DATA.customers.length") === 8 && J(w, "DATA.suppliers.length") === 6 && J(w, "DATA.orders.length") === 5, "επαναφορά όλων στα δοκιμαστικά");
+    w.goSec("admin", "Προϊόντα");
+    v = w.document.getElementById("view").innerHTML;
+    ok(/12<\/td><td[^>]*>πλήρη προϊόντα-πρότυπα/.test(v) && v.includes("δεν έχουν φορτωθεί σε αυτόν τον υπολογιστή") && side().includes('>12</span>'),
+       "χωρίς πραγματικά: «12 πλήρη πρότυπα» + σύνδεσμος φόρτωσης · μενού 12");
+    w.goSec("crm", "Πελάτες");
+    ok(/8<\/td><td[^>]*>πελάτες στη λίστα<\/td><td[^>]*>όλοι δοκιμαστικοί/.test(w.document.getElementById("view").innerHTML), "χωρίς πραγματικά: «8 πελάτες — όλοι δοκιμαστικοί»");
     try { fs.unlinkSync(ENC); } catch(e){}
     w.eval("MNI_REAL.msg=''; MNI_REAL.err=''");
   }

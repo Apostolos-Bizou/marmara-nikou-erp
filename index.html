@@ -17710,9 +17710,9 @@ setTheme(savedTheme);
    έχει πάντα ακριβώς δύο καρτέλες: εφαρμογή ⇄ έλεγχος. */
 try{ window.name="mn_erp"; }catch(e){}
 
-/*MNI:BEGIN v4*/
+/*MNI:BEGIN v5*/
 /* ============================================================
-   ΕΙΣΑΓΩΓΗ ΔΕΔΟΜΕΝΩΝ — ΠΕΛΑΤΕΣ · ΠΡΟΜΗΘΕΥΤΕΣ · ΕΙΔΗ  (Φ28 · οδηγός Φ28β · .xls Φ28γ · πραγματικά Φ28δ)
+   ΕΙΣΑΓΩΓΗ ΔΕΔΟΜΕΝΩΝ — ΠΕΛΑΤΕΣ · ΠΡΟΜΗΘΕΥΤΕΣ · ΕΙΔΗ  (Φ28 · οδηγός Φ28β · .xls Φ28γ · πραγματικά Φ28δ · «τι μετράμε» Φ28ε)
    ------------------------------------------------------------
    Μία μηχανή, τρεις «συνταγές». Ο Λάμπρος φέρνει το αρχείο από το
    πρόγραμμα που δουλεύει σήμερα, αντιστοιχίζει στήλες, βλέπει τι
@@ -18696,7 +18696,9 @@ function mniRun(){
   var snapshot = JSON.stringify(DATA);
   var at = new Date().toISOString(), res = {type:type, file:MNI.file, fmt:MNI.fmt, at:at,
              rows:P.total, add:0, upd:0, skipped:P.noName + P.dups + P.kindSkipped + (MNI.activeOnly ? P.inactive : 0),
-             mode:replace ? "replace" : "merge"};
+             mode:replace ? "replace" : "merge", activeOnly:MNI.activeOnly,
+             stats:{total:P.total, noName:P.noName, dups:P.dups, inactive:P.inactive, kindSkipped:P.kindSkipped,
+                    noVat:P.noVat, badVat:P.badVat, sameVat:P.sameVat, groups:P.groups, grpMode:P.grpMode}};
   DATA._imp = DATA._imp || {log:[], journal:{}};
   DATA._imp.batches = DATA._imp.batches || {};
   DATA._imp.seq = (DATA._imp.seq || 1) + 1;          /* 1 = εισαγωγές πριν τις παρτίδες */
@@ -19184,6 +19186,176 @@ function mniAll(t){ MNI_SHOW[t] = 1e9; render(); }
     };
   });
 })();
+/* ============================================================
+   «ΤΙ ΜΕΤΡΑΜΕ» — κάθε αριθμός εξηγείται με λόγια  (Φ28ε)
+   ------------------------------------------------------------
+   Ο Λάμπρος ξέρει ότι έχει ~2.600 είδη και 4.300 πελάτες. Αν η
+   οθόνη γράφει «383» χωρίς εξήγηση, θα νομίσει ότι χάθηκαν.
+   Κάθε λίστα δείχνει: τι μετράει ο αριθμός, από τι αποτελείται,
+   και τι έμεινε έξω από το αρχείο και γιατί.
+   Τα δοκιμαστικά ΔΕΝ κρύβονται — είναι τα πλήρη πρότυπα.
+   ============================================================ */
+function mniN(n){ return (n || 0).toLocaleString("el-GR"); }
+function mniLastImport(type){
+  var L = (DATA._imp && DATA._imp.log) || [];
+  for(var i = 0; i < L.length; i++){ if(L[i].type === type && !L[i].revert) return L[i]; if(L[i].type === type && L[i].revert) return null; }
+  return null;
+}
+function mniRow(num, what, how){
+  return '<tr><td class="rt mono" style="font-weight:800;font-size:15px;white-space:nowrap">' + num + '</td>'
+    + '<td style="font-weight:600">' + what + '</td><td style="color:var(--muted);font-size:13px">' + how + '</td></tr>';
+}
+function mniExplainBox(title, rows, notes){
+  var h = '<div class="card" style="margin:14px 0 4px;padding:14px 16px;border-left:3px solid var(--sand,#E1DDAE)">'
+    + '<div style="font-weight:800;font-size:14px;margin-bottom:8px">' + title + '</div>';
+  if(rows.length) h += '<div style="overflow-x:auto"><table style="width:100%"><thead><tr><th class="rt">Αριθμός</th><th>Τι είναι</th><th>Από τι αποτελείται</th></tr></thead><tbody>'
+    + rows.join("") + '</tbody></table></div>';
+  (notes || []).forEach(function(n){ if(n) h += '<p style="margin:8px 0 0;font-size:13.5px;line-height:1.6">' + n + '</p>'; });
+  return h + '</div>';
+}
+function mniSameDay(recs){
+  var c = {}, best = null;
+  recs.forEach(function(r){ var d = r.first; if(d && d !== "—"){ c[d] = (c[d] || 0) + 1; if(!best || c[d] > c[best]) best = d; } });
+  return best ? {d:best, n:c[best]} : null;
+}
+function mniDmy(iso){ var p = String(iso).split("-"); return p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0] : iso; }
+var MNI_WORD = {customers:{one:"πελάτης", many:"πελάτες", demo:"δοκιμαστικοί πελάτες"},
+                suppliers:{one:"προμηθευτής", many:"προμηθευτές", demo:"δοκιμαστικοί προμηθευτές"}};
+function mniExplainParty(type){
+  var all = DATA[type], imp = all.filter(function(r){ return r.imp; }), demo = all.length - imp.length;
+  var W = MNI_WORD[type], last = mniLastImport(type), st = last && last.stats;
+  if(!imp.length){
+    return mniExplainBox("Τι μετράμε σε αυτή τη σελίδα", [
+      mniRow(mniN(all.length), W.many + " στη λίστα", "όλοι δοκιμαστικοί — με ψεύτικα στοιχεία, για να δείξουν πώς δουλεύει η καρτέλα")
+    ], ['Οι ' + W.many + ' του προγράμματός σας δεν έχουν φορτωθεί σε αυτόν τον υπολογιστή. '
+        + '<a href="#" onclick="mniGo(\'' + type + '\');return false" style="color:inherit;font-weight:700">Φόρτωση πραγματικών δεδομένων</a>']);
+  }
+  var rows = [mniRow(mniN(all.length), W.many + " στη λίστα",
+    mniN(imp.length) + " από το αρχείο" + (last ? " «" + esc(last.file) + "»" : "")
+    + (demo ? " + " + mniN(demo) + " " + W.demo : " · οι δοκιμαστικοί αντικαταστάθηκαν"))];
+  if(st){
+    var out = [];
+    if(st.inactive && last.activeOnly !== false) out.push(mniN(st.inactive) + " ανενεργοί");
+    if(st.noName) out.push(mniN(st.noName) + " χωρίς επωνυμία");
+    if(st.dups) out.push(mniN(st.dups) + " διπλές γραμμές");
+    rows.push(mniRow(mniN(st.total), "γραμμές στο αρχείο",
+      mniN(last.add + last.upd) + " μπήκαν" + (out.length ? " · έξω: " + out.join(" · ") : " · καμία δεν έμεινε έξω")));
+    if(st.noVat) rows.push(mniRow(mniN(st.noVat), W.many + " χωρίς ΑΦΜ",
+      "στο αρχείο το ΑΦΜ ήταν κενό, 000000000 ή σύντομος αριθμός (π.χ. «123») — μπήκαν χωρίς ΑΦΜ"));
+    if(st.badVat) rows.push(mniRow(mniN(st.badVat), "ΑΦΜ με λάθος ψηφίο ελέγχου", "μπήκαν όπως ήταν — θέλουν διόρθωση στην καρτέλα"));
+    if(st.sameVat) rows.push(mniRow(mniN(st.sameVat), "ΑΦΜ που υπάρχει και σε άλλον κωδικό", "μπήκαν χωριστά — πιθανόν η ίδια εταιρεία δύο φορές στο πρόγραμμά σας"));
+  }
+  var notes = [];
+  var sd = mniSameDay(imp);
+  if(type === "customers"){
+    if(sd && sd.n > imp.length / 2)
+      notes.push("<strong>Γιατί " + mniN(imp.length) + " και όχι οι 50–150 που δουλεύετε σήμερα;</strong> Η στήλη «Ενεργός» του αρχείου γράφει «Ναι» σχεδόν σε όλους, και "
+        + mniN(sd.n) + " καταχωρήθηκαν την ίδια μέρα (" + mniDmy(sd.d) + ") — μάλλον μεταφορά από παλιότερο σύστημα. "
+        + "Για να μείνουν μόνο οι τρέχοντες, χρειάζεται εξαγωγή με στήλη «Τελευταία κίνηση» ή «Τζίρος».");
+    notes.push("<strong>Τζίρος, υπόλοιπο και ληξιπρόθεσμα</strong> των πελατών του αρχείου φαίνονται 0: το αρχείο δεν τα περιέχει."
+      + (demo ? " Τα ποσά που βλέπετε είναι των " + mniN(demo) + " δοκιμαστικών." : ""));
+  } else {
+    notes.push("<strong>Οφειλές, πιστοποιητικά και αξιολογήσεις</strong> των προμηθευτών του αρχείου είναι κενά: το αρχείο δεν τα περιέχει."
+      + (demo ? " Όσα βλέπετε ανήκουν στους " + mniN(demo) + " δοκιμαστικούς." : ""));
+  }
+  if(!demo) notes.push("Οι δοκιμαστικοί " + W.many + " επανέρχονται από Διαχείριση → Εισαγωγή δεδομένων → «Επαναφορά».");
+  return mniExplainBox("Τι μετράμε σε αυτή τη σελίδα", rows, notes);
+}
+function mniExplainProducts(){
+  var P = DATA.products, imp = P.filter(function(p){ return p.imp; }), demo = P.filter(function(p){ return !p.imp; });
+  var sku = function(list){ return list.reduce(function(a, p){ return a + p.variants.length; }, 0); };
+  var impSku = sku(imp), demoSku = sku(demo);
+  var src = MNI.prdSrc || "all";
+  var btn = function(k, label){ return '<button class="b sm' + (src === k ? '' : ' ghost') + '" onclick="MNI.prdSrc=\'' + k + '\';MNI_SHOW={};render()">' + label + '</button>'; };
+  if(!imp.length){
+    return mniExplainBox("Τι μετράμε σε αυτή τη σελίδα", [
+      mniRow(mniN(demo.length), "πλήρη προϊόντα-πρότυπα", "με τεχνικά, φινιρίσματα, φωτογραφίες, τιμές και CE — δείχνουν πώς θα είναι κάθε υλικό σας"),
+      mniRow(mniN(demoSku), "κωδικοί (SKU)", "οι παραλλαγές τους: μορφή × πάχος × φινίρισμα — αυτό μπαίνει σε προσφορά και δελτίο")
+    ], ['Τα είδη του προγράμματός σας δεν έχουν φορτωθεί σε αυτόν τον υπολογιστή. '
+        + '<a href="#" onclick="mniGo(\'products\');return false" style="color:inherit;font-weight:700">Φόρτωση πραγματικών δεδομένων</a>']);
+  }
+  var last = mniLastImport("products"), st = last && last.stats;
+  var rows = [
+    mniRow(mniN(P.length), "προϊόντα (υλικά) στη λίστα", mniN(imp.length) + " υλικά από το πρόγραμμά σας + " + mniN(demo.length) + " πλήρη πρότυπα"),
+    mniRow(mniN(impSku + demoSku), "κωδικοί (SKU) — ό,τι μπαίνει σε προσφορά και δελτίο",
+      mniN(impSku) + " είδη" + (last ? " του «" + esc(last.file) + "»" : " από το πρόγραμμα") + " + " + mniN(demoSku) + " των προτύπων")
+  ];
+  var val = function(list){ return list.reduce(function(a, p){ return a + p.variants.reduce(function(b, v){ return b + (+v.stock || 0) * (+v.base || 0); }, 0); }, 0); };
+  var noCE = function(list){ return list.filter(function(p){ return !(p.compliance && p.compliance.ce); }).length; };
+  rows.push(mniRow(eur(val(P)), "αξία αποθέματος (κάρτα πάνω)",
+    val(imp) > 0 ? eur(val(imp)) + " από τα υλικά σας + " + eur(val(demo)) + " των προτύπων"
+                 : "όλη από τα " + mniN(demo.length) + " πρότυπα — τα είδη σας δεν έχουν ούτε απόθεμα ούτε τιμή στο αρχείο"));
+  rows.push(mniRow(mniN(noCE(P)), "χωρίς CE marking (κάρτα πάνω)",
+    mniN(noCE(imp)) + " υλικά σας (το αρχείο δεν περιέχει CE) + " + mniN(noCE(demo)) + " πρότυπα"));
+  if(st){
+    var out = [];
+    if(st.kindSkipped) out.push(mniN(st.kindSkipped) + " λογιστικά έξοδα και υπηρεσίες (δεν είναι μάρμαρα προς πώληση)");
+    if(st.noName) out.push(mniN(st.noName) + " χωρίς περιγραφή ή με άκυρη περιγραφή");
+    if(st.dups) out.push(mniN(st.dups) + " διπλές γραμμές");
+    if(st.inactive) out.push(mniN(st.inactive) + " ανενεργά");
+    rows.push(mniRow(mniN(st.total), "γραμμές στο αρχείο", mniN(last.add + last.upd) + " μπήκαν ως SKU" + (out.length ? " · έξω: " + out.join(" · ") : "")));
+  }
+  /* παράδειγμα: το υλικό με τα περισσότερα είδη (προτιμάμε ΔΕΜΑΤΙΟΥ αν υπάρχει) */
+  var ex = imp.filter(function(p){ return /ΔΕΜΑΤΙΟΥ/i.test(p.name); })[0]
+        || imp.slice().sort(function(a, b){ return b.variants.length - a.variants.length; })[0];
+  var notes = [];
+  if(ex && ex.variants.length > 1){
+    var codes = ex.variants.map(function(v){ return v.sku; }).sort();
+    notes.push("<strong>Γιατί " + mniN(imp.length) + " και όχι " + mniN(impSku) + ";</strong> Στο πρόγραμμά σας κάθε πάχος και κάθε μορφή είναι ξεχωριστό είδος. "
+      + "Εδώ είναι παραλλαγές του ίδιου υλικού. Παράδειγμα: το <strong>" + esc(ex.name) + "</strong> έχει " + mniN(ex.variants.length)
+      + " είδη (" + esc(codes[0]) + " … " + esc(codes[codes.length - 1]) + ") → ένα προϊόν με " + mniN(ex.variants.length) + " SKU. "
+      + (last && last.stats && last.stats.grpMode === "code" ? "Τα είδη ενώνονται από το πρώτο κομμάτι του κωδικού (π.χ. «021» στο 021.0.002)." : ""));
+  }
+  var withPrice = imp.filter(function(p){ return p.variants.some(function(v){ return v.base > 0; }); }).length;
+  var withPhoto = imp.filter(function(p){ return (p.media || []).length; }).length;
+  var withTech = imp.filter(function(p){ return p.tech && p.tech.density; }).length;
+  notes.push("<strong>Τα " + mniN(demo.length) + " πρότυπα</strong> (με την ένδειξη «πρότυπο») είναι πλήρη: τεχνικά, φινιρίσματα, φωτογραφίες, τιμές, CE. "
+    + "Έτσι θα γίνουν και τα " + mniN(imp.length) + " υλικά σας όταν συμπληρωθούν. Σήμερα από τα " + mniN(imp.length) + ": "
+    + mniN(withPrice) + " με τιμή · " + mniN(withPhoto) + " με φωτογραφία · " + mniN(withTech) + " με τεχνικά στοιχεία — το αρχείο δεν τα περιέχει.");
+  notes.push('<span style="display:inline-flex;gap:6px;flex-wrap:wrap;align-items:center">Εμφάνιση: '
+    + btn("all", "Όλα (" + mniN(P.length) + ")") + btn("imp", "Από το πρόγραμμα (" + mniN(imp.length) + ")") + btn("demo", "Πρότυπα (" + mniN(demo.length) + ")") + '</span>');
+  return mniExplainBox("Τι μετράμε σε αυτή τη σελίδα", rows, notes);
+}
+(function(){
+  var anchor = '<div style="margin:16px 0 14px';
+  [["viewCustomers", function(){ return mniExplainParty("customers"); }, function(){ return CUST; }],
+   ["viewSuppliers", function(){ return mniExplainParty("suppliers"); }, function(){ return SUP; }],
+   ["viewProducts",  mniExplainProducts, function(){ return PROD; }]].forEach(function(x){
+    var orig = window[x[0]]; if(typeof orig !== "function") return;
+    window[x[0]] = function(){
+      var h = orig.apply(this, arguments);
+      if(x[2]() || typeof h !== "string") return h;          /* καρτέλα, όχι λίστα */
+      var i = h.indexOf(anchor);
+      if(i >= 0) h = h.slice(0, i) + x[1]() + h.slice(i);
+      if(x[0] === "viewProducts"){
+        DATA.products.forEach(function(p){
+          if(!p.imp) h = h.split('<span class="id">' + p.code + '</span>')
+                          .join('<span class="id">' + p.code + '</span><div><span class="pill a" style="margin-top:3px">πρότυπο</span></div>');
+        });
+      }
+      return h;
+    };
+  });
+  /* φίλτρο προέλευσης προϊόντων — προεπιλογή «Όλα», τίποτα δεν κρύβεται αυτόματα */
+  var _rt = runTable;
+  runTable = function(t, rows, cfg){
+    if(t === "prd" && MNI.prdSrc && MNI.prdSrc !== "all")
+      rows = rows.filter(function(p){ return MNI.prdSrc === "imp" ? !!p.imp : !p.imp; });
+    return _rt(t, rows, cfg);
+  };
+  /* αριθμός στο μενού: «371+12» αντί για «383» */
+  var _badge = badge;
+  badge = function(sec){
+    var coll = sec === "Προϊόντα" ? "products" : sec === "Πελάτες" ? "customers" : sec === "Προμηθευτές" ? "suppliers" : null;
+    if(!coll) return _badge(sec);
+    var all = DATA[coll] || [], imp = all.filter(function(r){ return r.imp; }).length, demo = all.length - imp;
+    if(!imp) return _badge(sec);
+    var label = demo ? mniN(imp) + "+" + mniN(demo) : mniN(imp);
+    var tip = mniN(imp) + " από το πρόγραμμά σας" + (demo ? " + " + mniN(demo) + (coll === "products" ? " πρότυπα" : " δοκιμαστικοί") : "");
+    return '<span class="badge" title="' + esc(tip) + '">' + label + '</span>';
+  };
+})();
+
 /* Το banner λέει «καμία πραγματική τιμή ή στοιχείο πελάτη». Μετά από εισαγωγή
    αυτό δεν ισχύει πια σε ΑΥΤΟΝ τον υπολογιστή — το λέμε καθαρά. */
 var MNI_BANNER = null;
@@ -19661,6 +19833,7 @@ G({ic:"⑦", t:{el:"Βήμα 7 — Μετά την εισαγωγή", en:"Step 7
              "Ο κωδικός τους ξεκινά με «CL-» και συνεχίζει με τον κωδικό του προγράμματός σας (π.χ. CL-ΔΟΚ-001). Προμηθευτές: «SL-». Προϊόντα: «PX-».",
              "Στη στήλη «Προέλευση» γράφει «Εισαγωγή». Φίλτρο «Προέλευση: Εισαγωγή» τους δείχνει μόνους τους.",
              "Με χιλιάδες πελάτες η λίστα δείχνει τους πρώτους 150, με κουμπιά «Περισσότερες» και «Όλες». Η αναζήτηση ψάχνει πάντα σε όλους.",
+             "Στην κορυφή της λίστας, το πλαίσιο «Τι μετράμε σε αυτή τη σελίδα» εξηγεί κάθε αριθμό: πόσοι ήρθαν από το αρχείο, πόσοι είναι δοκιμαστικοί, πόσες γραμμές έμειναν έξω και γιατί. Στο αριστερό μενού ο αριθμός γράφεται π.χ. «4.373+8» (από το αρχείο + δοκιμαστικοί).",
              "Αν το αρχείο είχε «Επωνυμία πωλητή» και «Ημ/νία καταχώρησης», μπαίνουν στον «Υπεύθυνο πωλητή» και στην «Πρώτη επαφή» της καρτέλας.",
              "Ανοίξτε έναν: η καρτέλα έχει όσα στοιχεία είχε το αρχείο, και στο «Ιστορικό» μια εγγραφή «Εισαγωγή — Από [όνομα αρχείου]».",
              "Διορθώστε ό,τι χρειάζεται με «✎ Επεξεργασία» — π.χ. το ΑΦΜ με την κόκκινη ένδειξη — και «✓ Αποθήκευση». Η αλλαγή σας ΔΕΝ χάνεται αν αργότερα ξαναφέρετε το ίδιο αρχείο· ενημερώνονται μόνο τα πεδία που έχει το αρχείο.",
@@ -19670,6 +19843,7 @@ G({ic:"⑦", t:{el:"Βήμα 7 — Μετά την εισαγωγή", en:"Step 7
              "Their code starts with «CL-» followed by your software's code (e.g. CL-ΔΟΚ-001). Suppliers: «SL-». Products: «PX-».",
              "The «Source» column reads «Import». The «Source: Import» filter shows them on their own.",
              "With thousands of customers the list shows the first 150, with «More» and «All» buttons. Search always looks through all of them.",
+             "At the top of the list, the «What this page counts» box explains every number: how many came from the file, how many are samples, how many rows stayed out and why. In the side menu the count reads e.g. «4,373+8» (from the file + samples).",
              "If the file had «Salesperson» and «Registration date», they go into the card's «Sales owner» and «First contact».",
              "Open one: the card holds whatever the file had, and its «History» has an entry «Import — From [file name]».",
              "Fix what is needed with «✎ Edit» — e.g. the VAT number with the red tag — then «✓ Save». Your change is NOT lost if you later bring the same file again; only the fields in the file are updated.",
@@ -19694,6 +19868,8 @@ G({ic:"⑧", t:{el:"Βήμα 8 — Είδη αποθήκης: από κωδικ�
              "Μονάδες από την περιγραφή: «ΣΕ Μ2» → m², «ΣΕ ΜΜ» → μ.μ., «ΣΕ Μ3» → m³, «ΣΕ ΤΟΝΝΟΥΣ» → τόνοι, «ΣΕ ΤΕΜ» → τεμ. Πάχος: «0,02» → 2 cm· «0,04 & ΑΝΩ» → 4+ cm.",
              "«Χωρίς λογιστικά έξοδα και υπηρεσίες»: αναμμένο. Αφήνει έξω είδη που είναι έξοδα (ΧΔΕΦ) ή υπηρεσίες — δεν είναι μάρμαρα προς πώληση.",
              "Εισαγωγή. Διαχείριση → Προϊόντα: τα νέα προϊόντα έχουν κωδικό «PX-» (π.χ. PX-021) και μέσα τους τα είδη ως SKU με τον δικό σας κωδικό.",
+             "ΜΗΝ ΞΑΦΝΙΑΣΤΕΙΤΕ ΜΕ ΤΟΝ ΑΡΙΘΜΟ: το μενού γράφει «371+12», όχι 2.466. Μετράει υλικά, όχι είδη. Το πλαίσιο «Τι μετράμε» στην κορυφή το αποδεικνύει: 383 προϊόντα = 371 υλικά σας + 12 πρότυπα · 2.497 SKU = 2.466 είδη σας + 31 των προτύπων · 2.655 γραμμές αρχείου = 2.466 μπήκαν + 187 έξοδα/υπηρεσίες + 2 άκυρες.",
+             "Τα 12 πρότυπα έχουν την ένδειξη «πρότυπο» και δεν κρύβονται: είναι πλήρη (τεχνικά, φινιρίσματα, φωτογραφίες, τιμές, CE) και δείχνουν πώς θα γίνουν τα δικά σας υλικά. Τα κουμπιά «Όλα / Από το πρόγραμμα / Πρότυπα» αλλάζουν μόνο την εμφάνιση.",
              "Χωρίς δικό σας αρχείο: «Δοκιμαστικό αρχείο» — 60 είδη σε 3 ομάδες, 6 ανενεργά → 54 SKU σε 3 προϊόντα (εκεί οι κωδικοί δεν έχουν τελείες, οπότε ομαδοποιεί από τη στήλη «Ομάδα»).",
              "Αν η λίστα δεν έχει τιμές, τα SKU μπαίνουν με τιμή 0. Τεχνικά χαρακτηριστικά (πυκνότητα, αντοχές) δεν έρχονται ποτέ από το πρόγραμμα — συμπληρώνονται στο προϊόν → «Τεχνικά».",
              "Τα 12 δοκιμαστικά προϊόντα μένουν. Όπου υπάρχει και πραγματικό (π.χ. ΔΕΜΑΤΙΟΥ), θα φαίνονται και τα δύο μέχρι να οριστεί η αντικατάσταση."],
@@ -19705,6 +19881,8 @@ G({ic:"⑧", t:{el:"Βήμα 8 — Είδη αποθήκης: από κωδικ�
              "Units from the description: «ΣΕ Μ2» → m², «ΣΕ ΜΜ» → running metres, «ΣΕ Μ3» → m³, «ΣΕ ΤΟΝΝΟΥΣ» → tonnes, «ΣΕ ΤΕΜ» → pieces. Thickness: «0,02» → 2 cm; «0,04 & ΑΝΩ» → 4+ cm.",
              "«Without accounting expenses and services»: on. It leaves out items that are expenses or services — they are not stone for sale.",
              "Import. Admin → Products: the new products carry a «PX-» code (e.g. PX-021) and hold the items as SKUs with your own code.",
+             "DON'T BE ALARMED BY THE NUMBER: the menu reads «371+12», not 2,466. It counts materials, not items. The «What this page counts» box at the top proves it: 383 products = your 371 materials + 12 templates · 2,497 SKUs = your 2,466 items + 31 of the templates · 2,655 file rows = 2,466 imported + 187 expenses/services + 2 invalid.",
+             "The 12 templates carry a «template» tag and are not hidden: they are complete (technical data, finishes, photos, prices, CE) and show how your own materials will look. The «All / From your software / Templates» buttons only change what is shown.",
              "Without a file of your own: «Sample file» — 60 items in 3 groups, 6 inactive → 54 SKUs in 3 products (there the codes have no dots, so it groups by the «Group» column).",
              "If the list has no prices, SKUs come in at price 0. Technical data (density, strengths) never comes from the software — fill it in on the product → «Technical».",
              "The 12 sample products stay. Where a real one also exists (e.g. ΔΕΜΑΤΙΟΥ), both will show until replacement is defined."]},
