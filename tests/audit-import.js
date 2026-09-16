@@ -15,7 +15,9 @@ function boot(storage){
       w.DecompressionStream = globalThis.DecompressionStream;
       w.Response = globalThis.Response;
       w.TextDecoder = globalThis.TextDecoder;
+      w.TextEncoder = globalThis.TextEncoder;
       w.confirm = () => true; w.alert = () => {}; w.scrollTo = () => {};
+      w.Element.prototype.scrollIntoView = function(){};
       w.__errors = [];
       w.addEventListener("error", e => w.__errors.push(e.message));
       if(storage) for(const k in storage) w.localStorage.setItem(k, storage[k]);
@@ -206,6 +208,90 @@ function cardTabs(w, go, setter){
   ok(J(w, "(localStorage.getItem(STORE_KEY)||'').length") < 5000000, "είδη: χωράνε (" + J(w, "(localStorage.getItem(STORE_KEY)||'').length") + ")");
   w.mniRevert("products");
   ok(J(w, "DATA.products.length") === 12 && J(w, "allVariants().length") === J(w, "SEED.products.reduce((a,p)=>a+p.variants.length,0)"), "επαναφορά ειδών");
+
+  sec("Οδηγός — καρτέλα «Εισαγωγή δεδομένων» (Φ28β)");
+  const gi = J(w, "GUIDE.imp && GUIDE.imp.cards");
+  ok(gi && gi.length === 11, "11 κάρτες βημάτων (" + (gi ? gi.length : 0) + ")");
+  const bad2 = [];
+  for(const k of Object.keys(J(w, "GUIDE"))){
+    const cards = J(w, "GUIDE[" + JSON.stringify(k) + "].cards") || [];
+    cards.forEach((c, i) => {
+      const miss = ["t","see","does"].filter(f => !(c[f] && c[f].el && c[f].en));
+      if(c.res && !(c.res.el && c.res.en)) miss.push("res");
+      if(c.steps && !(c.steps.el && c.steps.en && c.steps.el.length === c.steps.en.length)) miss.push("steps");
+      if(c.pic && !(c.picCap && c.picCap.el && c.picCap.en)) miss.push("picCap");
+      if(miss.length) bad2.push(k + "#" + i + ":" + miss.join("/"));
+    });
+  }
+  ok(!bad2.length, "όλες οι κάρτες όλων των καρτελών πλήρεις EL+EN" + (bad2.length ? " → " + bad2.slice(0, 5).join(" ") : ""));
+  ok(gi.every(c => c.steps && c.steps.el.length >= 3), "κάθε βήμα έχει τουλάχιστον 3 οδηγίες");
+  const pics = gi.filter(c => c.pic);
+  const badPic = pics.filter(c => { const d = new w.DOMParser().parseFromString(c.pic, "image/svg+xml");
+    return d.getElementsByTagName("parsererror").length || /undefined|NaN/.test(c.pic); });
+  ok(pics.length >= 9 && !badPic.length, pics.length + " σχηματικές εικόνες, όλες έγκυρο SVG");
+  w.eval("openGuide('imp')");
+  let gh = w.document.getElementById("gdBody").innerHTML;
+  ok(/class="on"[^>]*>⤓ Εισαγωγή δεδομένων/.test(gh) || /onclick="setGTab\('imp'\)"[^>]*class="on"/.test(gh) || w.document.querySelector("#gdBody .gd-nav button.on").textContent.includes("Εισαγωγή δεδομένων"),
+     "η καρτέλα εμφανίζεται στο μενού του οδηγού και είναι επιλεγμένη");
+  ok(w.document.querySelectorAll("#gdBody .gc").length === 11 && gh.includes("Σε μία πρόταση"), "αποδίδονται εισαγωγή + 11 κάρτες");
+  const navTxt = [...w.document.querySelectorAll("#gdBody .gd-nav button")].map(b => b.textContent);
+  ok(navTxt.indexOf("⤓ Εισαγωγή δεδομένων") === navTxt.findIndex(t => t.includes("Δελτίο παραγγελίας")) + 1, "η καρτέλα μπαίνει ακριβώς μετά το «Δελτίο παραγγελίας»");
+  w.eval("setGLang('en')");
+  ok(w.document.querySelector("#gdBody .gd-nav button.on").textContent.includes("Data import") && w.document.getElementById("gdBody").innerHTML.includes("In one sentence"), "αγγλικά: καρτέλα και κείμενα");
+  w.eval("setGLang('el'); setGTab('flow')");
+  ok(w.document.querySelectorAll("#gdBody .gd-nav button").length === 10 && !w.document.querySelector("#gdBody .gd-nav button.on").textContent.includes("Εισαγωγή"), "σε άλλη καρτέλα το κουμπί υπάρχει, χωρίς επιλογή");
+  const goBad = [];
+  for(const c of gi.concat([J(w, "GUIDE.test.cards.filter(c=>c.ic==='⤓')[0]"), J(w, "GUIDE.admin.cards.filter(c=>c.ic==='⤓')[0]")])){
+    if(!c || !c.go) continue;
+    try { w.eval("closeGuide();" + c.go); } catch(e){ goBad.push(c.go + ": " + e.message); }
+  }
+  ok(!goBad.length, "όλα τα «Δοκίμασέ το» δουλεύουν" + (goBad.length ? " → " + goBad.join(" | ") : ""));
+  ok(J(w, "GUIDE.test.cards.some(c=>c.ic==='⤓' && c.steps.el.length>=12)"), "σενάριο δοκιμής στην καρτέλα «Σενάρια δοκιμής»");
+  ok(J(w, "GUIDE.glossary.some(g=>g.w.el==='Αντιστοίχιση στηλών')"), "γλωσσάριο: νέοι όροι");
+
+  sec("Δοκιμαστικό αρχείο — τα νούμερα του οδηγού");
+  w.eval("MNI.type='customers'"); w.goSec("admin", J(w, "MNI_SEC"));
+  v = w.document.getElementById("view").innerHTML;
+  ok(v.includes("Δοκιμαστικό αρχείο") && v.includes("Αρχείο χωρίς στήλες") && v.includes("Οδηγός βήμα-βήμα"), "κουμπιά δοκιμαστικού αρχείου και οδηγού στην οθόνη");
+  await w.mniDemo("customers");
+  ok(J(w, "MNI.file") === "δοκιμαστικό-πελάτες.csv" && J(w, "MNI.rows.length") === 82 && J(w, "MNI.fmt") === "CSV / κείμενο", "«δοκιμαστικό-πελάτες.csv · CSV / κείμενο · 82 γραμμές»");
+  ok(J(w, "Object.keys(MNI.map).length") === 12, "και οι 12 στήλες αντιστοιχίστηκαν μόνες τους");
+  P = J(w, "(function(){var p=mniPlan();return {n:p.recs.length,noName:p.noName,dups:p.dups,inactive:p.inactive,bad:p.badVat,mail:p.badMail}})()");
+  ok(P.n === 67 && P.noName === 3 && P.dups === 2 && P.inactive === 10 && P.bad === 2 && P.mail === 3, "67 μπαίνουν · 3 χωρίς όνομα · 2 διπλές · 10 ανενεργές · 2 ΑΦΜ · 3 email → " + JSON.stringify(P));
+  w.eval("MNI.activeOnly=false");
+  ok(J(w, "mniPlan().recs.length") === 77, "χωρίς «Μόνο ενεργοί»: 77");
+  w.eval("MNI.activeOnly=true");
+  w.goSec("admin", J(w, "MNI_SEC"));
+  v = w.document.getElementById("view").innerHTML;
+  ok(/ΔΟΚ-005<\/td><td>ΔΟΚΙΜΑΣΤΙΚΟΣ ΠΕΛΑΤΗΣ 005<\/td><td>100395951 <span class="pill bad">έλεγχος/.test(v), "ΔΟΚ-005: κόκκινο «έλεγχος» στο ΑΦΜ (100395951)");
+  ok(v.includes("Φεύγουν οι 8 ψεύτικοι πελάτες και οι κινήσεις τους: 5 παραγγελίες, 5 προσφορές, 7 παραστατικά, 8 δελτία"), "το κείμενο αντικατάστασης ταιριάζει με τον οδηγό");
+  w.eval("MNI.mode='replace'"); w.mniRun();
+  ok(J(w, "DATA.customers.length") === 67 && J(w, "DATA.orders.length") === 0, "67 πελάτες, 0 παραγγελίες");
+  ok(J(w, "!!find(DATA.customers,'id','CL-ΔΟΚ-001')"), "κωδικός CL-ΔΟΚ-001 όπως στον οδηγό");
+  /* επεξεργασία εισαγμένου: η τιμή που δεν υπάρχει στη λίστα ΔΕΝ αλλάζει σιωπηλά */
+  w.eval("find(DATA.customers,'id','CL-ΔΟΚ-005').cat='ΧΟΝΔΡΙΚΗ'; saveState(); goCust('CL-ΔΟΚ-005'); startEdit();");
+  const gsel = w.document.querySelector('select[data-ek="grade"]');
+  ok(gsel && gsel.value === "—", "σε επεξεργασία η Κατηγορία δείχνει «—», όχι σιωπηλά «A»");
+  gsel.value = "A"; w.saveEdit();
+  ok(J(w, "find(DATA.customers,'id','CL-ΔΟΚ-005').grade") === "A" && J(w, "find(DATA.customers,'id','CL-ΔΟΚ-005').cat") === "ΧΟΝΔΡΙΚΗ", "αποθήκευση: κατηγορία A, και η «ΧΟΝΔΡΙΚΗ» έμεινε ίδια");
+  ok(J(w, "find(DATA.customers,'id','CL-ΔΟΚ-006').grade") === "—", "η αλλαγή δεν πέρασε σε άλλο πελάτη");
+  await w.mniDemo("customers");
+  P = J(w, "(function(){var p=mniPlan();return {add:p.add,upd:p.upd}})()");
+  ok(P.add === 0 && P.upd === 67, "ξανά: «0 νέες · 67 ενημερώσεις»");
+  w.mniRun();
+  ok(J(w, "DATA.customers.length") === 67 && J(w, "find(DATA.customers,'id','CL-ΔΟΚ-005').grade") === "A", "μετά την ενημέρωση ο 005 κρατάει την κατηγορία A");
+  w.mniRevert("customers");
+  ok(J(w, "DATA.customers.length") === 8 && J(w, "DATA.orders.length") === 5, "επαναφορά: 8 πελάτες, 5 παραγγελίες");
+  await w.mniDemo("bad");
+  ok(/μόνο τον εσωτερικό κωδικό/.test(J(w, "MNI.err")) && /40 εγγραφές/.test(J(w, "MNI.err")) && J(w, "DATA.customers.length") === 8, "«Αρχείο χωρίς στήλες»: 40 εγγραφές, απόρριψη, πελάτες 8");
+  await w.mniDemo("suppliers");
+  ok(J(w, "mniPlan().recs.length") === 12 && J(w, "MNI.map[0]") === "ext" && J(w, "MNI.map[6]") === "iban", "δοκιμαστικοί προμηθευτές: 12, κωδικός και IBAN");
+  await w.mniDemo("products");
+  ok(J(w, "mniPlan().recs.length") === 54, "δοκιμαστικά είδη: 54 ενεργά από 60");
+  w.mniRun();
+  ok(J(w, "DATA.products.filter(p=>p.imp).length") === 3 && J(w, "allVariants().filter(x=>x.v.imp).length") === 54, "3 προϊόντα, 54 SKU");
+  w.mniRevert("products");
+  renderAll(w, "μετά τα δοκιμαστικά αρχεία");
 
   sec("Όταν δεν χωράει");
   const before = J(w, "JSON.stringify(DATA)");

@@ -1,6 +1,6 @@
-/*MNI:BEGIN v1*/
+/*MNI:BEGIN v2*/
 /* ============================================================
-   ΕΙΣΑΓΩΓΗ ΔΕΔΟΜΕΝΩΝ — ΠΕΛΑΤΕΣ · ΠΡΟΜΗΘΕΥΤΕΣ · ΕΙΔΗ  (Φ28)
+   ΕΙΣΑΓΩΓΗ ΔΕΔΟΜΕΝΩΝ — ΠΕΛΑΤΕΣ · ΠΡΟΜΗΘΕΥΤΕΣ · ΕΙΔΗ  (Φ28 · οδηγός Φ28β)
    ------------------------------------------------------------
    Μία μηχανή, τρεις «συνταγές». Ο Λάμπρος φέρνει το αρχείο από το
    πρόγραμμα που δουλεύει σήμερα, αντιστοιχίζει στήλες, βλέπει τι
@@ -1028,27 +1028,666 @@ function mniBanner(){
 }
 var _mniRender2 = render;
 render = function(){ _mniRender2(); mniBanner(); };
-/* κάρτα οδηγού */
-if(typeof GUIDE !== "undefined" && GUIDE.admin && GUIDE.admin.cards){
+/* ============================================================
+   ΔΟΚΙΜΑΣΤΙΚΑ ΑΡΧΕΙΑ — για να ακολουθηθεί ο οδηγός χωρίς δικό σας αρχείο
+   Φτιάχνονται μέσα στον browser, με ΓΝΩΣΤΑ νούμερα ώστε ο οδηγός να λέει
+   ακριβώς τι πρέπει να δείτε. Τα ονόματα είναι ρητά «ΔΟΚΙΜΑΣΤΙΚΟΣ».
+   ============================================================ */
+function mniDemoAfm(i, bad){
+  var d = String(10000000 + i * 7919 % 90000000).slice(-8).split("").map(Number), s = 0;
+  for(var k = 0; k < 8; k++) s += d[k] * Math.pow(2, 8 - k);
+  var c = (s % 11) % 10;
+  return d.join("") + String(bad ? (c + 1) % 10 : c);
+}
+var MNI_DEMO = {
+  /* 82 γραμμές → 3 χωρίς επωνυμία · 10 ανενεργές · 2 διπλές · μπαίνουν 67
+     · προς έλεγχο: 2 ΑΦΜ + 3 email */
+  customers:function(){
+    var cities = ["Ιωάννινα","Άρτα","Πρέβεζα","Μέτσοβο","Κόνιτσα","Ηγουμενίτσα"], rows = [];
+    rows.push("Κωδικός;Επωνυμία;ΑΦΜ;ΔΟΥ;Διεύθυνση;Πόλη;Τ.Κ.;Τηλέφωνο;Κινητό;Email;Ενεργός;Υπόλοιπο");
+    var line = function(i){
+      var n = String(i).padStart(3, "0");
+      var name = [7, 23, 51].indexOf(i) >= 0 ? "" : "ΔΟΚΙΜΑΣΤΙΚΟΣ ΠΕΛΑΤΗΣ " + n;
+      var mail = [12, 44, 61].indexOf(i) >= 0 ? "pelatis" + n + "-xoris-papaki" : "pelatis" + n + "@example.gr";
+      return ["ΔΟΚ-" + n, name, mniDemoAfm(i, i === 5 || i === 33), "Α΄ Ιωαννίνων", "Οδός Δοκιμής " + i,
+              cities[i % cities.length], 45000 + i, "26510" + String(10000 + i), "69" + String(40000000 + i),
+              mail, i % 8 === 0 ? "Όχι" : "Ναι", (i * 12.5).toFixed(2).replace(".", ",")].join(";");
+    };
+    for(var i = 1; i <= 80; i++) rows.push(line(i));
+    rows.push(line(10)); rows.push(line(11));        /* δύο διπλές */
+    return {name:"δοκιμαστικό-πελάτες.csv", text:rows.join("\r\n")};
+  },
+  /* 12 προμηθευτές, όλοι σωστοί */
+  suppliers:function(){
+    var rows = ["Κωδικός προμηθευτή;Επωνυμία;ΑΦΜ;Πόλη;Τηλέφωνο;Email;IBAN"];
+    for(var i = 1; i <= 12; i++){
+      var n = String(i).padStart(2, "0");
+      rows.push(["ΠΡ-" + n, "ΔΟΚΙΜΑΣΤΙΚΟΣ ΠΡΟΜΗΘΕΥΤΗΣ " + n, mniDemoAfm(500 + i), "Θεσσαλονίκη",
+                 "2310" + String(100000 + i), "promitheftis" + n + "@example.gr",
+                 "GR00 0000 0000 0000 0000 0000 0" + n].join(";"));
+    }
+    return {name:"δοκιμαστικό-προμηθευτές.csv", text:rows.join("\r\n")};
+  },
+  /* 60 είδη σε 3 ομάδες · 6 ανενεργά → μπαίνουν 54 SKU σε 3 προϊόντα */
+  products:function(){
+    var groups = ["ΔΟΚΙΜΑΣΤΙΚΟ ΛΕΥΚΟ","ΔΟΚΙΜΑΣΤΙΚΟ ΓΚΡΙ","ΔΟΚΙΜΑΣΤΙΚΟ ΜΠΕΖ"];
+    var rows = ["Κωδικός είδους;Περιγραφή;Ομάδα;Μ.Μ.;Πάχος;Τιμή πώλησης;Τιμή κόστους;Απόθεμα;Ενεργό"];
+    for(var i = 1; i <= 60; i++){
+      var g = groups[i % 3], th = i % 2 ? 2 : 3;
+      rows.push(["ΕΙΔ-" + String(i).padStart(3, "0"), g + " " + th + "cm " + (i % 4 ? "ΓΥΑΛΙΣΤΟ" : "ΜΑΤ"), g,
+                 i % 5 ? "τ.μ." : "μ.μ.", th, (40 + i).toFixed(2).replace(".", ","),
+                 (22 + i / 2).toFixed(2).replace(".", ","), 10 * i, i % 10 === 0 ? "Όχι" : "Ναι"].join(";"));
+    }
+    return {name:"δοκιμαστικό-είδη.csv", text:rows.join("\r\n")};
+  },
+  /* Το ίδιο πρόβλημα με τα αρχεία της 09/09: μόνο κωδικός + «Message» */
+  bad:function(){
+    var data = []; for(var i = 0; i < 40; i++) data.push({ID:1000 + i, Message:"ΟΛΟΙ"});
+    return {name:"δοκιμή-χωρίς-στήλες.json",
+            text:JSON.stringify({TCustomer:[{MainTable:"CUSTOMER", KeyField:"ID", Caption:"Διαχείριση πελατών", Data:data}]}, null, 2)};
+  }
+};
+function mniDemo(kind){
+  var type = kind === "bad" ? (MNI.type || "customers") : kind;
+  MNI.type = type; MNI.mode = "merge"; MNI.activeOnly = true; MNI.result = null;
+  var f = MNI_DEMO[kind]();
+  return mniLoadBytes(f.name, new TextEncoder().encode(f.text));
+}
+
+/* ============================================================
+   ΟΔΗΓΟΣ — καρτέλα «Εισαγωγή δεδομένων» (Φ28β)
+   Ίδιο μοτίβο με το «Δελτίο παραγγελίας»: σχηματική εικόνα,
+   Τι βλέπεις · Τι κάνει · Βήμα-βήμα · Αποτέλεσμα · Δοκίμασέ το
+   ============================================================ */
+var MP = {};
+var MP_F = 'font-family="Inter,sans-serif"', MP_C = 'font-family="Roboto Condensed,sans-serif" font-weight="900"';
+function mpBtn(x, y, w, t, dark){
+  return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="24" rx="3" fill="' + (dark ? '#111' : '#fff') + '" stroke="#111"/>'
+    + '<text x="' + (x + w / 2) + '" y="' + (y + 16) + '" font-size="8.5" text-anchor="middle" ' + MP_C + ' fill="' + (dark ? '#E1DDAE' : '#111') + '">' + t + '</text>';
+}
+function mpKpi(x, y, lab, val, note, warn){
+  return '<rect x="' + x + '" y="' + y + '" width="150" height="58" rx="4" fill="#fff" stroke="' + (warn ? '#b3261e' : '#ddd') + '"/>'
+    + '<text x="' + (x + 10) + '" y="' + (y + 16) + '" font-size="7.5" fill="#8a8a82" ' + MP_C + '>' + lab + '</text>'
+    + '<text x="' + (x + 10) + '" y="' + (y + 38) + '" font-size="17" ' + MP_C + ' fill="' + (warn ? '#b3261e' : '#111') + '">' + val + '</text>'
+    + '<text x="' + (x + 10) + '" y="' + (y + 51) + '" font-size="7.5" fill="#666">' + note + '</text>';
+}
+function mpArrow(x1, y1, x2, y2){
+  return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="#D81B8C" stroke-width="2" marker-end="url(#mpar)"/>';
+}
+var MP_DEFS = '<defs><marker id="mpar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">'
+  + '<path d="M2 1L8 5L2 9" fill="none" stroke="#D81B8C" stroke-width="1.8"/></marker></defs>';
+
+MP.where = '<svg viewBox="0 0 700 190" xmlns="http://www.w3.org/2000/svg" ' + MP_F + '>' + MP_DEFS
++ '<rect width="700" height="190" fill="#FAF9F5"/>'
++ '<rect x="0" y="0" width="700" height="30" fill="#111"/>'
++ '<rect x="70" y="7" width="74" height="17" rx="2" fill="#E1DDAE"/><text x="107" y="19" font-size="8.5" text-anchor="middle" ' + MP_C + '>ΔΙΑΧΕΙΡΙΣΗ</text>'
++ '<text x="160" y="19" font-size="8.5" fill="#8a8a82" ' + MP_C + '>ΠΩΛΗΣΕΙΣ</text>'
++ '<rect x="0" y="30" width="170" height="160" fill="#F1EFE8"/>'
++ '<text x="12" y="52" font-size="7" fill="#8a8a82" ' + MP_C + '>ΡΥΘΜΙΣΕΙΣ</text>'
++ '<text x="12" y="72" font-size="9.5" fill="#444">Παράμετροι κόστους</text>'
++ '<rect x="0" y="80" width="170" height="24" fill="#fff"/><rect x="0" y="80" width="3" height="24" fill="#111"/>'
++ '<text x="12" y="96" font-size="9.5" font-weight="700">Εισαγωγή δεδομένων</text>'
++ '<text x="12" y="120" font-size="9.5" fill="#444">Οδηγός χρήσης</text>'
++ '<text x="12" y="142" font-size="9.5" fill="#444">Χρήστες</text>'
++ '<text x="36" y="176" font-size="8.5" fill="#D81B8C" font-weight="700">Δρόμος 1: από το μενού</text>'
++ '<text x="200" y="60" font-size="15" ' + MP_C + '>ΠΕΛΑΤΕΣ</text>'
++ '<text x="200" y="76" font-size="8" fill="#8a8a82">Πωλήσεις → Πελάτες</text>'
++ mpBtn(200, 92, 120, "+ ΝΕΟΣ ΠΕΛΑΤΗΣ", true)
++ mpBtn(328, 92, 160, "ΕΙΣΑΓΩΓΗ ΠΕΛΑΤΟΛΟΓΙΟΥ", false)
++ '<rect x="324" y="88" width="168" height="32" rx="5" fill="none" stroke="#D81B8C" stroke-width="2"/>'
++ '<text x="506" y="100" font-size="8" fill="#444">Το ίδιο κουμπί υπάρχει και στους</text>'
++ '<text x="506" y="112" font-size="8" fill="#444">Προμηθευτές και στα Προϊόντα</text>'
++ '<text x="330" y="146" font-size="8.5" fill="#D81B8C" font-weight="700">Δρόμος 2: από τη λίστα</text>'
++ '</svg>';
+
+MP.pick = '<svg viewBox="0 0 700 170" xmlns="http://www.w3.org/2000/svg" ' + MP_F + '>' + MP_DEFS
++ '<rect width="700" height="170" fill="#FAF9F5"/>'
++ '<text x="16" y="24" font-size="9" fill="#8a8a82" ' + MP_C + '>1. ΤΙ ΦΕΡΝΕΤΕ</text>'
++ mpBtn(16, 34, 90, "ΠΕΛΑΤΕΣ", true) + mpBtn(112, 34, 110, "ΠΡΟΜΗΘΕΥΤΕΣ", false) + mpBtn(228, 34, 120, "ΕΙΔΗ ΑΠΟΘΗΚΗΣ", false)
++ mpBtn(16, 72, 130, "ΕΠΙΛΟΓΗ ΑΡΧΕΙΟΥ…", true)
++ '<text x="156" y="88" font-size="9"><tspan font-weight="700">πελάτες.xlsx</tspan> · Excel (.xlsx) · «Πελάτες» · 4.373 γραμμές</text>'
++ '<text x="16" y="120" font-size="8" fill="#666">Μορφές που διαβάζονται: Excel (.xlsx), Excel 97–2003 (.xls), JSON, XML, CSV / κείμενο.</text>'
++ '<text x="16" y="142" font-size="8" fill="#444">Δεν έχετε αρχείο;</text>'
++ mpBtn(100, 128, 150, "ΔΟΚΙΜΑΣΤΙΚΟ ΑΡΧΕΙΟ", false) + mpBtn(256, 128, 150, "ΑΡΧΕΙΟ ΧΩΡΙΣ ΣΤΗΛΕΣ", false)
++ '<text x="430" y="40" font-size="8.5" fill="#D81B8C" font-weight="700">① Πρώτα τι φέρνετε</text>'
++ '<text x="430" y="86" font-size="8.5" fill="#D81B8C" font-weight="700">② Μετά το αρχείο — βλέπετε</text>'
++ '<text x="430" y="98" font-size="8.5" fill="#D81B8C" font-weight="700">    όνομα, μορφή, πλήθος γραμμών</text>'
++ '<text x="430" y="144" font-size="8.5" fill="#D81B8C" font-weight="700">③ Ή δοκιμή χωρίς δικό σας αρχείο</text>'
++ '</svg>';
+
+MP.map = '<svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg" ' + MP_F + '>'
++ '<rect width="700" height="200" fill="#FAF9F5"/>'
++ '<text x="16" y="22" font-size="9" fill="#8a8a82" ' + MP_C + '>2. ΠΟΙΑ ΣΤΗΛΗ ΕΙΝΑΙ ΤΙ</text>'
++ '<rect x="16" y="30" width="668" height="160" rx="4" fill="#fff" stroke="#ddd"/>'
++ ['ΣΤΗΛΗ ΑΡΧΕΙΟΥ','ΔΕΙΓΜΑ','ΠΕΔΙΟ ΣΤΗΝ ΕΦΑΡΜΟΓΗ'].map(function(t, i){
+    return '<text x="' + [28, 170, 470][i] + '" y="48" font-size="7.5" fill="#8a8a82" ' + MP_C + '>' + t + '</text>'; }).join("")
++ [["Κωδικός","ΔΟΚ-001 · ΔΟΚ-002 · ΔΟΚ-003","Κωδικός στο πρόγραμμα",0],
+   ["Επωνυμία","ΔΟΚΙΜΑΣΤΙΚΟΣ ΠΕΛΑΤΗΣ 001 · …","Επωνυμία *",0],
+   ["ΑΦΜ","100079190 · 100158389 · …","ΑΦΜ",0],
+   ["Παρατηρήσεις γραφείου","πληρώνει με επιταγή · …","— να μη μπει —",1],
+   ["Ενεργός","Ναι · Ναι · Όχι","Ενεργός / Ανενεργός",0]]
+  .map(function(r, i){ var y = 58 + i * 26;
+    return '<line x1="16" y1="' + y + '" x2="684" y2="' + y + '" stroke="#eee"/>'
+      + '<text x="28" y="' + (y + 17) + '" font-size="9.5" font-weight="700" fill="' + (r[3] ? '#aaa' : '#111') + '">' + r[0] + '</text>'
+      + '<text x="170" y="' + (y + 17) + '" font-size="8.5" fill="#8a8a82">' + r[1] + '</text>'
+      + '<rect x="470" y="' + (y + 4) + '" width="200" height="18" rx="2" fill="#fff" stroke="' + (r[3] ? '#bbb' : '#111') + '"/>'
+      + '<text x="478" y="' + (y + 17) + '" font-size="9" fill="' + (r[3] ? '#999' : '#111') + '">' + r[2] + '</text>'
+      + '<text x="660" y="' + (y + 17) + '" font-size="8">▾</text>'; }).join("")
++ '<text x="470" y="198" font-size="7.5" fill="#D81B8C" font-weight="700">* υποχρεωτικό · γκρι γραμμή = δεν θα μπει</text>'
++ '</svg>';
+
+MP.check = '<svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg" ' + MP_F + '>'
++ '<rect width="700" height="200" fill="#FAF9F5"/>'
++ '<text x="16" y="22" font-size="9" fill="#8a8a82" ' + MP_C + '>3. ΤΙ ΘΑ ΜΠΕΙ</text>'
++ mpKpi(16, 30, "ΓΡΑΜΜΕΣ ΑΡΧΕΙΟΥ", "82", "")
++ mpKpi(186, 30, "ΘΑ ΜΠΟΥΝ", "67", "όλες νέες")
++ mpKpi(356, 30, "ΠΑΡΑΛΕΙΠΟΝΤΑΙ", "15", "3 χωρίς όνομα · 2 διπλές · 10 ανενεργές", true)
++ mpKpi(526, 30, "ΠΡΟΣ ΕΛΕΓΧΟ", "5", "2 ΑΦΜ · 3 email — μπαίνουν", true)
++ '<rect x="16" y="100" width="12" height="12" rx="2" fill="#111"/><text x="19" y="110" font-size="9" fill="#fff">✓</text>'
++ '<text x="36" y="110" font-size="9.5">Μόνο ενεργοί (10 ανενεργές μένουν έξω)</text>'
++ '<rect x="16" y="122" width="668" height="70" rx="4" fill="#fff" stroke="#ddd"/>'
++ [["ΔΟΚ-004","ΔΟΚΙΜΑΣΤΙΚΟΣ ΠΕΛΑΤΗΣ 004","100316765","","pelatis004@example.gr",""],
+   ["ΔΟΚ-005","ΔΟΚΙΜΑΣΤΙΚΟΣ ΠΕΛΑΤΗΣ 005","100395951","ΑΦΜ","pelatis005@example.gr",""],
+   ["ΔΟΚ-012","ΔΟΚΙΜΑΣΤΙΚΟΣ ΠΕΛΑΤΗΣ 012","100950280","","pelatis012-xoris-papaki","MAIL"]]
+  .map(function(r, i){ var y = 142 + i * 20;
+    return '<text x="28" y="' + y + '" font-size="8.5">' + r[0] + '</text>'
+      + '<text x="96" y="' + y + '" font-size="8.5">' + r[1] + '</text>'
+      + '<text x="300" y="' + y + '" font-size="8.5">' + r[2] + '</text>'
+      + (r[3] ? '<rect x="352" y="' + (y - 9) + '" width="44" height="12" rx="2" fill="#fbe9e7"/><text x="374" y="' + y + '" font-size="7.5" text-anchor="middle" fill="#b3261e" font-weight="700">έλεγχος</text>' : '')
+      + '<text x="430" y="' + y + '" font-size="8.5">' + r[4] + '</text>'
+      + (r[5] ? '<rect x="560" y="' + (y - 9) + '" width="44" height="12" rx="2" fill="#fbe9e7"/><text x="582" y="' + y + '" font-size="7.5" text-anchor="middle" fill="#b3261e" font-weight="700">έλεγχος</text>' : '');
+  }).join("")
++ '</svg>';
+
+MP.mode = '<svg viewBox="0 0 700 170" xmlns="http://www.w3.org/2000/svg" ' + MP_F + '>'
++ '<rect width="700" height="170" fill="#FAF9F5"/>'
++ '<text x="16" y="22" font-size="9" fill="#8a8a82" ' + MP_C + '>4. ΠΩΣ ΜΠΑΙΝΟΥΝ</text>'
++ '<circle cx="24" cy="44" r="6" fill="#fff" stroke="#111"/>'
++ '<text x="38" y="48" font-size="9.5"><tspan font-weight="700">Προσθήκη και ενημέρωση.</tspan> Τα δοκιμαστικά μένουν. Ίδιος κωδικός → ενημερώνεται, δεν διπλασιάζεται.</text>'
++ '<circle cx="24" cy="74" r="6" fill="#fff" stroke="#111"/><circle cx="24" cy="74" r="3" fill="#111"/>'
++ '<text x="38" y="78" font-size="9.5"><tspan font-weight="700">Αντικατάσταση των δοκιμαστικών.</tspan> Φεύγουν οι 8 ψεύτικοι πελάτες και οι κινήσεις τους:</text>'
++ '<text x="38" y="92" font-size="9.5">5 παραγγελίες, 5 προσφορές, 7 παραστατικά, 8 δελτία. Όλα επανέρχονται με «Επαναφορά».</text>'
++ mpBtn(16, 116, 170, "ΕΙΣΑΓΩΓΗ 67 ΕΓΓΡΑΦΩΝ", true) + mpBtn(194, 116, 90, "ΑΚΥΡΩΣΗ", false)
++ '<rect x="400" y="108" width="284" height="44" rx="4" fill="#fff" stroke="#ddd"/>'
++ '<text x="412" y="126" font-size="8.5" font-weight="700">Επιβεβαίωση</text>'
++ '<text x="412" y="142" font-size="8">«Θα αφαιρεθούν 8 δοκιμαστικοί πελάτες… Συνέχεια;»</text>'
++ '</svg>';
+
+MP.done = '<svg viewBox="0 0 700 170" xmlns="http://www.w3.org/2000/svg" ' + MP_F + '>'
++ '<rect width="700" height="170" fill="#FAF9F5"/>'
++ '<rect x="16" y="12" width="668" height="38" rx="3" fill="#F1EDD6" stroke="#E1DDAE"/>'
++ '<text x="28" y="30" font-size="9"><tspan font-weight="700">Mockup — Φάση 1.</tspan> Περιέχει <tspan font-weight="700">πραγματικά δεδομένα από εισαγωγή</tspan>,</text>'
++ '<text x="28" y="43" font-size="9">αποθηκευμένα μόνο σε αυτόν τον υπολογιστή. Τα υπόλοιπα είναι δοκιμαστικά.</text>'
++ '<rect x="16" y="64" width="668" height="40" rx="3" fill="#fff" stroke="#ddd"/><rect x="16" y="64" width="3" height="40" fill="#2e7d32"/>'
++ '<text x="30" y="88" font-size="9.5"><tspan font-weight="700">Έγινε.</tspan> 67 νέες, 0 ενημερώσεις, 15 παραλείφθηκαν. Αφαιρέθηκαν 8 δοκιμαστικοί πελάτες.</text>'
++ mpBtn(540, 72, 132, "ΑΝΟΙΓΜΑ: ΠΕΛΑΤΕΣ", false)
++ '<text x="16" y="130" font-size="9" fill="#8a8a82" ' + MP_C + '>ΠΕΛΑΤΕΣ</text>'
++ '<text x="16" y="148" font-size="9.5" font-weight="700">ΔΟΚΙΜΑΣΤΙΚΟΣ ΠΕΛΑΤΗΣ 001</text>'
++ '<text x="16" y="160" font-size="8" fill="#8a8a82">CL-ΔΟΚ-001 · ΑΦΜ 100079190</text>'
++ '<text x="300" y="148" font-size="9">Χωρίς κατηγορία · Ιωάννινα · • Εισαγωγή</text>'
++ '<rect x="600" y="138" width="60" height="16" rx="2" fill="#fff" stroke="#2e7d32"/><text x="630" y="150" font-size="8" text-anchor="middle" fill="#2e7d32" font-weight="700">ΕΝΕΡΓΟΣ</text>'
++ '</svg>';
+
+MP.hist = '<svg viewBox="0 0 700 150" xmlns="http://www.w3.org/2000/svg" ' + MP_F + '>'
++ '<rect width="700" height="150" fill="#FAF9F5"/>'
++ '<text x="16" y="22" font-size="9" fill="#8a8a82" ' + MP_C + '>ΙΣΤΟΡΙΚΟ ΕΙΣΑΓΩΓΩΝ</text>'
++ '<rect x="16" y="30" width="668" height="76" rx="4" fill="#fff" stroke="#ddd"/>'
++ ['ΠΟΤΕ','ΤΙ','ΑΡΧΕΙΟ','ΝΕΕΣ','ΕΝΗΜ.','ΤΡΟΠΟΣ'].map(function(t, i){
+    return '<text x="' + [28, 150, 250, 470, 520, 580][i] + '" y="46" font-size="7.5" fill="#8a8a82" ' + MP_C + '>' + t + '</text>'; }).join("")
++ '<text x="28" y="68" font-size="8.5">2026-09-16 10:42</text><text x="150" y="68" font-size="8.5">Πελάτες</text>'
++ '<text x="250" y="68" font-size="8.5">δοκιμαστικό-πελάτες.csv</text><text x="470" y="68" font-size="8.5">67</text><text x="520" y="68" font-size="8.5">0</text>'
++ '<rect x="580" y="58" width="80" height="14" rx="2" fill="#fff4d6"/><text x="620" y="69" font-size="7.5" text-anchor="middle" fill="#a86b00" font-weight="700">αντικατάσταση</text>'
++ '<text x="28" y="92" font-size="8.5">2026-09-16 10:55</text><text x="150" y="92" font-size="8.5">Πελάτες</text>'
++ '<text x="250" y="92" font-size="8.5">Επαναφορά — αφαιρέθηκαν 67</text>'
++ mpBtn(16, 116, 150, "ΕΠΑΝΑΦΟΡΑ: ΠΕΛΑΤΕΣ", false)
++ '<rect x="12" y="112" width="158" height="32" rx="5" fill="none" stroke="#D81B8C" stroke-width="2"/>'
++ '<text x="190" y="132" font-size="8.5" fill="#444">Φεύγουν οι εισαγμένοι, επιστρέφουν οι 8 δοκιμαστικοί με όλες τις κινήσεις τους.</text>'
++ '</svg>';
+
+MP.bad = '<svg viewBox="0 0 700 110" xmlns="http://www.w3.org/2000/svg" ' + MP_F + '>'
++ '<rect width="700" height="110" fill="#FAF9F5"/>'
++ '<rect x="16" y="14" width="668" height="82" rx="3" fill="#fff" stroke="#ddd"/><rect x="16" y="14" width="3" height="82" fill="#b3261e"/>'
++ '<text x="30" y="36" font-size="10" font-weight="700">Το αρχείο δεν μπορεί να μπει.</text>'
++ '<text x="30" y="54" font-size="9">Το αρχείο έχει μόνο τον εσωτερικό κωδικό κάθε εγγραφής (40 εγγραφές, στήλες: ID, Message)</text>'
++ '<text x="30" y="68" font-size="9">— η εξαγωγή έγινε χωρίς στήλες. Ζητήστε νέα εξαγωγή με τις στήλες ορατές</text>'
++ '<text x="30" y="82" font-size="9">(επωνυμία, ΑΦΜ, διεύθυνση, τηλέφωνα…).</text>'
++ '</svg>';
+
+MP.store = '<svg viewBox="0 0 700 150" xmlns="http://www.w3.org/2000/svg" ' + MP_F + '>' + MP_DEFS
++ '<rect width="700" height="150" fill="#FAF9F5"/>'
++ '<rect x="20" y="30" width="180" height="96" rx="6" fill="#fff" stroke="#111"/>'
++ '<text x="110" y="52" font-size="10" text-anchor="middle" ' + MP_C + '>ΤΟ ΑΡΧΕΙΟ ΣΑΣ</text>'
++ '<text x="110" y="72" font-size="8.5" text-anchor="middle" fill="#444">από το εμπορικό πρόγραμμα</text>'
++ '<text x="110" y="100" font-size="8.5" text-anchor="middle" fill="#444">κρατήστε το — είναι</text>'
++ '<text x="110" y="112" font-size="8.5" text-anchor="middle" fill="#444">το αντίγραφο ασφαλείας</text>'
++ mpArrow(204, 78, 256, 78)
++ '<rect x="260" y="30" width="190" height="96" rx="6" fill="#E1DDAE" stroke="#111"/>'
++ '<text x="355" y="52" font-size="10" text-anchor="middle" ' + MP_C + '>ΑΥΤΟΣ Ο BROWSER</text>'
++ '<text x="355" y="72" font-size="8.5" text-anchor="middle">σε αυτόν τον υπολογιστή</text>'
++ '<text x="355" y="100" font-size="8.5" text-anchor="middle">εδώ μένουν οι πελάτες σας</text>'
++ '<rect x="490" y="30" width="190" height="96" rx="6" fill="#fff" stroke="#bbb" stroke-dasharray="5 4"/>'
++ '<text x="585" y="52" font-size="10" text-anchor="middle" fill="#999" ' + MP_C + '>GITHUB / INTERNET</text>'
++ '<text x="585" y="80" font-size="22" text-anchor="middle" fill="#b3261e">✕</text>'
++ '<text x="585" y="104" font-size="8.5" text-anchor="middle" fill="#999">δεν ανεβαίνει τίποτα</text>'
++ '<text x="350" y="144" font-size="8" text-anchor="middle" fill="#8a8a82">Άλλος υπολογιστής ή άλλος browser δεν τα βλέπει — χρειάζεται νέα εισαγωγή εκεί</text>'
++ '</svg>';
+
+MP.items = '<svg viewBox="0 0 700 150" xmlns="http://www.w3.org/2000/svg" ' + MP_F + '>' + MP_DEFS
++ '<rect width="700" height="150" fill="#FAF9F5"/>'
++ '<text x="20" y="22" font-size="9" fill="#8a8a82" ' + MP_C + '>ΣΤΟ ΠΡΟΓΡΑΜΜΑ ΣΑΣ: ΕΙΔΗ</text>'
++ ['ΕΙΔ-001 · ΓΚΡΙ 2cm ΓΥΑΛΙΣΤΟ','ΕΙΔ-004 · ΓΚΡΙ 3cm ΜΑΤ','ΕΙΔ-007 · ΓΚΡΙ 2cm ΓΥΑΛΙΣΤΟ','ΕΙΔ-002 · ΜΠΕΖ 3cm ΓΥΑΛΙΣΤΟ']
+  .map(function(t, i){ return '<rect x="20" y="' + (32 + i * 26) + '" width="220" height="20" rx="3" fill="#fff" stroke="#ddd"/>'
+    + '<text x="30" y="' + (46 + i * 26) + '" font-size="8.5">' + t + '</text>'; }).join("")
++ mpArrow(246, 78, 300, 78)
++ '<text x="258" y="68" font-size="7.5" fill="#D81B8C" font-weight="700">ομάδα</text>'
++ '<text x="310" y="22" font-size="9" fill="#8a8a82" ' + MP_C + '>ΣΤΗΝ ΕΦΑΡΜΟΓΗ: ΠΡΟΪΟΝ → SKU</text>'
++ '<rect x="310" y="32" width="370" height="46" rx="4" fill="#fff" stroke="#111"/>'
++ '<text x="322" y="50" font-size="10" font-weight="700">ΔΟΚΙΜΑΣΤΙΚΟ ΓΚΡΙ</text>'
++ '<text x="322" y="68" font-size="8.5" fill="#444">SKU: ΕΙΔ-001 · ΕΙΔ-004 · ΕΙΔ-007 · … (τ.μ. / μ.μ., πάχος, τιμή, απόθεμα)</text>'
++ '<rect x="310" y="86" width="370" height="46" rx="4" fill="#fff" stroke="#111"/>'
++ '<text x="322" y="104" font-size="10" font-weight="700">ΔΟΚΙΜΑΣΤΙΚΟ ΜΠΕΖ</text>'
++ '<text x="322" y="122" font-size="8.5" fill="#444">SKU: ΕΙΔ-002 · ΕΙΔ-005 · …</text>'
++ '</svg>';
+
+GUIDE.imp = {cards:[]};
+var G = function(c){ GUIDE.imp.cards.push(c); };
+
+G({ic:"①", t:{el:"Βήμα 1 — Πού βρίσκεται", en:"Step 1 — Where to find it"},
+  pic:MP.where, picCap:{el:"Δύο δρόμοι: από το αριστερό μενού της Διαχείρισης, ή από το κουμπί δίπλα στο «+ Νέος» κάθε λίστας.",
+                        en:"Two ways in: from the Admin side menu, or from the button next to «+ New» on each list."},
+  see:{el:"Στη Διαχείριση, στην ομάδα «Ρυθμίσεις» του αριστερού μενού, η δεύτερη επιλογή λέγεται «Εισαγωγή δεδομένων». Το ίδιο εργαλείο ανοίγει και από τρία κουμπιά μέσα στις λίστες: «Εισαγωγή πελατολογίου», «Εισαγωγή προμηθευτών», «Εισαγωγή ειδών».",
+       en:"Under Admin, in the «Settings» group of the side menu, the second item is «Data import». The same tool also opens from three buttons inside the lists: «Import customers», «Import suppliers», «Import items»."},
+  does:{el:"Φέρνει στην εφαρμογή τους πελάτες, τους προμηθευτές και τα είδη που ήδη έχετε στο εμπορικό σας πρόγραμμα, ώστε να μη χρειαστεί να τα ξαναγράψετε ένα-ένα. Είναι ένα εργαλείο για τα τρία — η διαδικασία είναι ίδια.",
+        en:"It brings into the app the customers, suppliers and items you already hold in your business software, so you do not have to retype them one by one. One tool for all three — the procedure is the same."},
+  steps:{el:["Μπείτε με admin / marmara2026.",
+             "Πάνω μπάρα: «ΔΙΑΧΕΙΡΙΣΗ» (ανοίγει μόνη της μετά την είσοδο).",
+             "Αριστερό μενού, ομάδα «Ρυθμίσεις»: πατήστε «Εισαγωγή δεδομένων».",
+             "Εναλλακτικά: Πωλήσεις → Πελάτες → κουμπί «Εισαγωγή πελατολογίου», δίπλα στο «+ Νέος πελάτης». Ανοίγει την ίδια οθόνη με τους «Πελάτες» ήδη επιλεγμένους.",
+             "Αντίστοιχα: Πωλήσεις → Προμηθευτές → «Εισαγωγή προμηθευτών», και Διαχείριση → Προϊόντα → «Εισαγωγή ειδών».",
+             "Αν δεν βλέπετε την επιλογή, πατήστε Ctrl+F5 — ο browser κρατάει ακόμα την παλιά έκδοση."],
+         en:["Sign in with admin / marmara2026.",
+             "Top bar: «ADMIN» (opens by itself after signing in).",
+             "Side menu, «Settings» group: click «Data import».",
+             "Alternatively: Sales → Customers → «Import customers», next to «+ New customer». It opens the same screen with «Customers» already selected.",
+             "Likewise: Sales → Suppliers → «Import suppliers», and Admin → Products → «Import items».",
+             "If you cannot see it, press Ctrl+F5 — the browser is still holding the old version."]},
+  res:{el:"Η οθόνη «Εισαγωγή δεδομένων» ανοιχτή. Πάνω τέσσερις δείκτες: πόσοι πελάτες, προμηθευτές και είδη υπάρχουν τώρα, και πόσος τοπικός χώρος χρησιμοποιείται.",
+       en:"The «Data import» screen is open. At the top four indicators: how many customers, suppliers and items exist now, and how much local storage is in use."},
+  go:"mniGo('customers')"});
+
+G({ic:"②", t:{el:"Βήμα 2 — Ετοιμάστε το αρχείο στο πρόγραμμά σας", en:"Step 2 — Prepare the file in your software"},
+  see:{el:"Αυτό το βήμα γίνεται ΕΞΩ από την εφαρμογή, στο εμπορικό πρόγραμμα που χρησιμοποιείτε σήμερα — στην οθόνη «Διαχείριση πελατών» ή «Διαχείριση ειδών αποθήκης».",
+       en:"This step happens OUTSIDE the app, in the business software you use today — on its «Customer management» or «Stock items» screen."},
+  does:{el:"Η εφαρμογή διαβάζει ό,τι στήλες βγάλει το πρόγραμμά σας. Αν η εξαγωγή γίνει χωρίς στήλες, βγαίνει ένα αρχείο που μοιάζει μεγάλο αλλά έχει μόνο κωδικούς — αυτό ακριβώς έγινε με τα πρώτα αρχεία στις 09/09. Η εφαρμογή το καταλαβαίνει και το απορρίπτει, αλλά είναι καλύτερο να βγει σωστά από την αρχή.",
+        en:"The app reads whatever columns your software exports. If the export runs without columns, you get a file that looks big but holds only codes — exactly what happened with the first files on 09/09. The app detects and rejects it, but it is better to export it right from the start."},
+  steps:{el:["Στη λίστα πελατών του προγράμματος, κάντε ορατές τις στήλες: Κωδικός, Επωνυμία, ΑΦΜ, ΔΟΥ, Επάγγελμα, Διεύθυνση, Πόλη, Τ.Κ., Τηλέφωνο, Κινητό, Email, Κατηγορία, Ενεργός/Ανενεργός, Υπόλοιπο.",
+             "Για προμηθευτές: οι ίδιες στήλες, και IBAN αν υπάρχει.",
+             "Για είδη: Κωδικός, Περιγραφή, Ομάδα, Μονάδα μέτρησης, Πάχος, Φινίρισμα, Τιμή πώλησης, Τιμή κόστους, ΦΠΑ, Απόθεμα, Ενεργό, Barcode.",
+             "Η στήλη «Ενεργός» είναι σημαντική: χωρίς αυτή μπαίνουν και οι πελάτες που έχετε χρόνια να δείτε.",
+             "Εξάγετε σε Excel (.xlsx). Αν το πρόγραμμα δίνει CSV, JSON ή XML, κι αυτά διαβάζονται.",
+             "Αν βγάλει παλιό Excel (.xls), ανοίξτε το στο Excel και «Αποθήκευση ως» → «Βιβλίο εργασίας Excel (.xlsx)».",
+             "Ανοίξτε το αρχείο μία φορά πριν το φέρετε: η πρώτη γραμμή πρέπει να έχει ονόματα στηλών και από κάτω να φαίνονται πραγματικές επωνυμίες.",
+             "Αν το πρόγραμμα δίνει κάποια άλλη μορφή, στείλτε μας ένα μικρό δείγμα — προστίθεται χωρίς να αλλάξει τίποτα άλλο."],
+         en:["In the software's customer list, make these columns visible: Code, Name, VAT no., Tax office, Occupation, Address, City, Postcode, Phone, Mobile, Email, Category, Active/Inactive, Balance.",
+             "For suppliers: the same columns, plus IBAN if available.",
+             "For items: Code, Description, Group, Unit, Thickness, Finish, Sale price, Cost price, VAT rate, Stock, Active, Barcode.",
+             "The «Active» column matters: without it, customers you have not seen in years come in too.",
+             "Export to Excel (.xlsx). If the software gives CSV, JSON or XML, those are read as well.",
+             "If it produces old Excel (.xls), open it in Excel and «Save as» → «Excel Workbook (.xlsx)».",
+             "Open the file once before bringing it in: the first row must hold column names, with real company names below.",
+             "If the software offers some other format, send us a small sample — it is added without changing anything else."]},
+  res:{el:"Ένα αρχείο με ονόματα στηλών στην πρώτη γραμμή και μία εγγραφή σε κάθε γραμμή από κάτω.",
+       en:"A file with column names in the first row and one record on each row below."}});
+
+G({ic:"③", t:{el:"Βήμα 3 — Διαλέξτε τι φέρνετε και το αρχείο", en:"Step 3 — Choose what you bring and the file"},
+  pic:MP.pick, picCap:{el:"Πρώτα το είδος, μετά το αρχείο. Χωρίς δικό σας αρχείο, το «Δοκιμαστικό αρχείο» φτιάχνει ένα με γνωστά νούμερα.",
+                       en:"First the kind, then the file. Without a file of your own, «Sample file» creates one with known numbers."},
+  see:{el:"Ενότητα «1. Τι φέρνετε»: τρία κουμπιά — Πελάτες, Προμηθευτές, Είδη αποθήκης — και από κάτω το «Επιλογή αρχείου…». Μετά την επιλογή εμφανίζεται δίπλα το όνομα, η μορφή και το πλήθος γραμμών.",
+       en:"Section «1. What you bring»: three buttons — Customers, Suppliers, Stock items — and below them «Choose file…». Once chosen, the name, format and row count appear beside it."},
+  does:{el:"Ανοίγει το αρχείο μέσα στον browser, χωρίς να το στείλει πουθενά. Βρίσκει μόνη της τη γραμμή με τα ονόματα των στηλών — ακόμα κι αν πάνω από αυτήν το πρόγραμμα έχει γράψει τίτλο ή κενές γραμμές.",
+        en:"It opens the file inside the browser, without sending it anywhere. It finds the column-name row by itself — even if the software wrote a title or blank lines above it."},
+  steps:{el:["Πατήστε το είδος: «Πελάτες». Γίνεται μαύρο.",
+             "Πατήστε «Επιλογή αρχείου…» και διαλέξτε το αρχείο από τον υπολογιστή σας.",
+             "Δίπλα στο κουμπί ελέγξτε: όνομα αρχείου, μορφή (π.χ. Excel .xlsx), όνομα φύλλου και πλήθος γραμμών. Αν οι γραμμές είναι πολύ λιγότερες ή πολύ περισσότερες απ' όσες περιμένετε, σταματήστε εδώ.",
+             "ΧΩΡΙΣ ΔΙΚΟ ΣΑΣ ΑΡΧΕΙΟ: πατήστε «Δοκιμαστικό αρχείο». Για πελάτες φτιάχνει 82 γραμμές με επίτηδες λάθη, ώστε να δείτε όλους τους ελέγχους.",
+             "Για να δείτε πώς απορρίπτεται λάθος εξαγωγή, πατήστε «Αρχείο χωρίς στήλες».",
+             "Για να φέρετε άλλο αρχείο, πατήστε ξανά το κουμπί — τώρα γράφει «Άλλο αρχείο…»."],
+         en:["Click the kind: «Customers». It turns black.",
+             "Click «Choose file…» and pick the file from your computer.",
+             "Beside the button check: file name, format (e.g. Excel .xlsx), sheet name and row count. If the rows are far fewer or far more than you expect, stop here.",
+             "WITHOUT A FILE OF YOUR OWN: click «Sample file». For customers it creates 82 rows with deliberate mistakes, so you see every check.",
+             "To see how a wrong export is rejected, click «File without columns».",
+             "To bring another file, click the button again — it now reads «Another file…»."]},
+  res:{el:"Το αρχείο διαβάστηκε. Από κάτω εμφανίζονται οι ενότητες 2, 3 και 4.",
+       en:"The file has been read. Sections 2, 3 and 4 appear below."},
+  go:"mniGo('customers')"});
+
+G({ic:"④", t:{el:"Βήμα 4 — Ποια στήλη είναι τι", en:"Step 4 — Which column is what"},
+  pic:MP.map, picCap:{el:"Κάθε στήλη του αρχείου σε μία γραμμή, με δείγμα από τις πρώτες εγγραφές και το πεδίο όπου θα μπει.",
+                      en:"Each file column on one row, with a sample from the first records and the field it will go into."},
+  see:{el:"Ενότητα «2. Ποια στήλη είναι τι»: πίνακας με τρεις στήλες — «Στήλη αρχείου», «Δείγμα», «Πεδίο στην εφαρμογή». Οι γραμμές που δεν θα μπουν φαίνονται αχνές.",
+       en:"Section «2. Which column is what»: a table with three columns — «File column», «Sample», «Field in the app». Rows that will not be imported look faded."},
+  does:{el:"Η εφαρμογή διαβάζει τα ονόματα των στηλών και μαντεύει μόνη της: «Α.Φ.Μ.» → ΑΦΜ, «Τ.Κ.» → Τ.Κ., «Ενεργός» → Ενεργός/Ανενεργός. Εσείς ελέγχετε και διορθώνετε. Τη διόρθωσή σας τη θυμάται — την επόμενη φορά με το ίδιο αρχείο δεν τη ξανακάνετε.",
+        en:"The app reads the column names and guesses on its own: «VAT no.» → VAT, «Postcode» → Postcode, «Active» → Active/Inactive. You check and correct. It remembers your correction — next time with the same file you do not redo it."},
+  steps:{el:["Κοιτάξτε τη στήλη «Δείγμα»: δείχνει τις τρεις πρώτες τιμές κάθε στήλης. Έτσι βλέπετε τι περιέχει στην πράξη, όχι μόνο πώς λέγεται.",
+             "Για κάθε γραμμή, ελέγξτε ότι το «Πεδίο στην εφαρμογή» ταιριάζει με το δείγμα.",
+             "Αν κάτι είναι λάθος, ανοίξτε τη λίστα και διαλέξτε το σωστό πεδίο.",
+             "Ό,τι δεν θέλετε να μπει, το αφήνετε ή το αλλάζετε σε «— να μη μπει —». Η γραμμή γίνεται αχνή.",
+             "Κάθε πεδίο μπαίνει σε μία μόνο στήλη. Αν το διαλέξετε σε δεύτερη, φεύγει αυτόματα από την πρώτη — η λίστα το σημειώνει ως «(ήδη σε άλλη στήλη)».",
+             "Η «Επωνυμία *» είναι υποχρεωτική (για είδη η «Περιγραφή *»). Χωρίς αυτήν δεν γίνεται εισαγωγή.",
+             "Ο «Κωδικός στο πρόγραμμα» είναι πολύ χρήσιμος: με αυτόν, μια δεύτερη εισαγωγή ΕΝΗΜΕΡΩΝΕΙ τον ίδιο πελάτη αντί να τον διπλασιάσει.",
+             "Στο δοκιμαστικό αρχείο όλες οι στήλες βρίσκονται σωστά μόνες τους — δεν χρειάζεται καμία αλλαγή."],
+         en:["Look at the «Sample» column: it shows the first three values of each column. That way you see what it really holds, not just its name.",
+             "For each row, check that the «Field in the app» matches the sample.",
+             "If something is wrong, open the list and pick the right field.",
+             "Anything you do not want imported, leave as or switch to «— do not import —». The row fades.",
+             "Each field goes into one column only. If you pick it for a second one, it is removed from the first automatically — the list marks it «(already on another column)».",
+             "«Name *» is mandatory (for items, «Description *»). Without it there is no import.",
+             "«Code in your software» is very useful: with it, a second import UPDATES the same customer instead of duplicating them.",
+             "In the sample file every column is matched correctly on its own — no change needed."]},
+  res:{el:"Κάθε χρήσιμη στήλη δείχνει στο σωστό πεδίο. Η ενότητα 3 από κάτω υπολογίζεται ξανά με κάθε αλλαγή.",
+       en:"Every useful column points to the right field. Section 3 below recalculates with each change."},
+  go:"mniGo('customers')"});
+
+G({ic:"⑤", t:{el:"Βήμα 5 — Τι θα μπει: οι έλεγχοι", en:"Step 5 — What will be imported: the checks"},
+  pic:MP.check, picCap:{el:"Με το δοκιμαστικό αρχείο: 82 γραμμές, 67 μπαίνουν, 15 μένουν έξω, 5 θέλουν έλεγχο.",
+                        en:"With the sample file: 82 rows, 67 go in, 15 stay out, 5 need checking."},
+  see:{el:"Ενότητα «3. Τι θα μπει»: τέσσερις δείκτες — «Γραμμές αρχείου», «Θα μπουν», «Παραλείπονται», «Προς έλεγχο» — ο διακόπτης «Μόνο ενεργοί» και οι 12 πρώτες εγγραφές όπως θα μπουν.",
+       en:"Section «3. What will be imported»: four indicators — «File rows», «Will import», «Skipped», «To check» — the «Active only» switch and the first 12 records as they will be imported."},
+  does:{el:"Σας δείχνει το αποτέλεσμα ΠΡΙΝ γίνει. Τίποτα δεν έχει αλλάξει ακόμα στην εφαρμογή. Βγάζει έξω τις γραμμές χωρίς όνομα και τις διπλές, και σημαδεύει — χωρίς να τα πετάει — τα ΑΦΜ που αποτυγχάνουν στον έλεγχο του τελευταίου ψηφίου και τα email που δεν έχουν σωστή μορφή.",
+        en:"It shows you the outcome BEFORE it happens. Nothing in the app has changed yet. It drops rows without a name and duplicates, and flags — without discarding — VAT numbers that fail the check-digit test and malformed emails."},
+  steps:{el:["«Γραμμές αρχείου»: όσες βρήκε κάτω από τις επικεφαλίδες. Δοκιμαστικό αρχείο: 82.",
+             "«Θα μπουν»: όσες θα καταχωρηθούν. Από κάτω γράφει πόσες είναι νέες και πόσες ενημερώσεις. Δοκιμαστικό: 67, όλες νέες.",
+             "«Παραλείπονται»: χωρίς όνομα + διπλές + ανενεργές. Δοκιμαστικό: 15 = 3 χωρίς όνομα, 2 διπλές, 10 ανενεργές. Κόκκινο πλαίσιο σημαίνει «ρίξτε μια ματιά», όχι λάθος.",
+             "Διπλή θεωρείται μια γραμμή με ίδιο κωδικό — ή, αν δεν υπάρχει κωδικός, με ίδιο σωστό ΑΦΜ ή ίδια επωνυμία. Μπαίνει μόνο η πρώτη.",
+             "«Προς έλεγχο»: ΑΦΜ με λάθος ψηφίο ελέγχου και email χωρίς «@». Δοκιμαστικό: 5 = 2 ΑΦΜ + 3 email. ΜΠΑΙΝΟΥΝ κανονικά — απλώς διορθώστε τα αργότερα στην καρτέλα.",
+             "Στον πίνακα από κάτω, όποια τιμή θέλει έλεγχο έχει δίπλα κόκκινη ένδειξη «έλεγχος».",
+             "«Μόνο ενεργοί»: αναμμένο από προεπιλογή. Αν το σβήσετε, μπαίνουν και οι ανενεργοί — στο δοκιμαστικό ο αριθμός γίνεται 77. Εμφανίζεται μόνο αν το αρχείο έχει στήλη Ενεργός/Ανενεργός.",
+             "Αν γράφει «Αντιστοιχίστε τη στήλη που έχει την Επωνυμία», γυρίστε στο Βήμα 4."],
+         en:["«File rows»: all rows found under the headings. Sample file: 82.",
+             "«Will import»: rows that will be saved. Below it: how many are new and how many are updates. Sample: 67, all new.",
+             "«Skipped»: no name + duplicates + inactive. Sample: 15 = 3 without a name, 2 duplicates, 10 inactive. A red frame means «take a look», not an error.",
+             "A duplicate is a row with the same code — or, with no code, the same valid VAT number or the same name. Only the first one goes in.",
+             "«To check»: VAT numbers with a wrong check digit and emails without «@». Sample: 5 = 2 VAT + 3 email. They ARE imported — just fix them later on the card.",
+             "In the table below, any value needing a check carries a red «check» tag beside it.",
+             "«Active only»: on by default. Switch it off and inactive customers come in too — in the sample the number becomes 77. It appears only if the file has an Active/Inactive column.",
+             "If it says «Match the column that holds the Name», go back to Step 4."]},
+  res:{el:"Ξέρετε ακριβώς πόσες εγγραφές θα μπουν και ποιες θέλουν διόρθωση — χωρίς να έχει αλλάξει ακόμα τίποτα.",
+       en:"You know exactly how many records will be imported and which need fixing — with nothing changed yet."},
+  go:"mniGo('customers')"});
+
+G({ic:"⑥", t:{el:"Βήμα 6 — Πώς μπαίνουν: Προσθήκη ή Αντικατάσταση", en:"Step 6 — How they go in: Add or Replace"},
+  pic:MP.mode, picCap:{el:"Η «Αντικατάσταση» λέει ακριβώς τι θα φύγει — και ζητάει επιβεβαίωση πριν το κάνει.",
+                       en:"«Replace» states exactly what will be removed — and asks for confirmation before doing it."},
+  see:{el:"Ενότητα «4. Πώς μπαίνουν»: δύο επιλογές και το κουμπί «Εισαγωγή Ν εγγραφών». Για τα είδη υπάρχει μόνο η «Προσθήκη».",
+       en:"Section «4. How they go in»: two options and the «Import N records» button. For items only «Add» is available."},
+  does:{el:"Η εφαρμογή έχει σήμερα 8 ψεύτικους πελάτες με ψεύτικες προσφορές, παραγγελίες και δελτία. Η «Προσθήκη» βάζει τους δικούς σας ΔΙΠΛΑ τους. Η «Αντικατάσταση» τους βγάζει μαζί με τις κινήσεις τους, ώστε να μείνουν μόνο οι πραγματικοί. Οι εντολές παραγωγής και οι πλάκες δεν σβήνονται — απλώς χάνουν τη σύνδεση με την ψεύτικη παραγγελία.",
+        en:"Today the app holds 8 fake customers with fake quotations, orders and sheets. «Add» places yours NEXT to them. «Replace» removes them together with their transactions, leaving only the real ones. Production orders and slabs are not deleted — they just lose the link to the fake order."},
+  steps:{el:["«Προσθήκη και ενημέρωση»: τα δοκιμαστικά μένουν. Αν ένας κωδικός έχει ξαναμπεί, ενημερώνονται τα στοιχεία του αντί να γίνει δεύτερη καρτέλα. Καλή για πρώτη δοκιμή.",
+             "«Αντικατάσταση των δοκιμαστικών»: διαβάστε το κείμενο δίπλα. Για πελάτες γράφει: «Φεύγουν οι 8 ψεύτικοι πελάτες και οι κινήσεις τους: 5 παραγγελίες, 5 προσφορές, 7 παραστατικά, 8 δελτία».",
+             "Με την αντικατάσταση φεύγουν και τυχόν πελάτες που είχαν μπει από προηγούμενη εισαγωγή — μένει μόνο το τρέχον αρχείο.",
+             "Για προμηθευτές, η αντικατάσταση βγάζει τους 6 ψεύτικους μαζί με τις αγορές τους και τα είδη του καταλόγου τους· αναλώσιμα, προϊόντα και τιμοκατάλογοι αγοράς μένουν, χωρίς προμηθευτή.",
+             "Για είδη: μόνο προσθήκη. Τα 12 δικά μας προϊόντα συνδέονται με δελτία, προσφορές και πλάκες — η αντικατάστασή τους θα οριστεί όταν δούμε τα πραγματικά σας είδη.",
+             "Πατήστε «Εισαγωγή Ν εγγραφών». Με αντικατάσταση, εμφανίζεται ερώτηση επιβεβαίωσης — πατήστε «OK».",
+             "Αν αλλάξατε γνώμη, «Ακύρωση»: το αρχείο κλείνει και δεν αλλάζει τίποτα."],
+         en:["«Add and update»: the sample data stays. If a code was imported before, its details are updated instead of creating a second card. Good for a first try.",
+             "«Replace the sample data»: read the text beside it. For customers it says: «The 8 fake customers go, with their transactions: 5 orders, 5 quotations, 7 documents, 8 sheets».",
+             "Replacing also removes any customers from a previous import — only the current file remains.",
+             "For suppliers, replacing removes the 6 fake ones with their purchases and catalogue items; consumables, products and purchase price lists remain, without a supplier.",
+             "For items: add only. Our 12 products are linked to sheets, quotations and slabs — replacing them will be defined once we see your real items.",
+             "Click «Import N records». With replace, a confirmation question appears — click «OK».",
+             "If you change your mind, «Cancel»: the file closes and nothing changes."]},
+  res:{el:"Οι εγγραφές μπήκαν. Αν δεν χωράνε στον χώρο του browser, η εισαγωγή ακυρώνεται ΟΛΟΚΛΗΡΗ και σας το λέει — δεν μένει ποτέ μισή.",
+       en:"The records are in. If they do not fit in the browser's storage, the import is cancelled ENTIRELY and you are told — it never stays half-done."},
+  go:"mniGo('customers')"});
+
+G({ic:"⑦", t:{el:"Βήμα 7 — Μετά την εισαγωγή", en:"Step 7 — After the import"},
+  pic:MP.done, picCap:{el:"Το banner αλλάζει, και οι πελάτες σας εμφανίζονται στη λίστα με κωδικό CL- και προέλευση «Εισαγωγή».",
+                       en:"The banner changes, and your customers appear in the list with a CL- code and source «Import»."},
+  see:{el:"Πράσινο πλαίσιο «Έγινε.» με τα νούμερα και κουμπί «Άνοιγμα: Πελάτες». Το κίτρινο banner στην κορυφή κάθε οθόνης γράφει πλέον ότι υπάρχουν πραγματικά δεδομένα από εισαγωγή.",
+       en:"A green «Done.» box with the numbers and an «Open: Customers» button. The yellow banner at the top of every screen now says there is real data from an import."},
+  does:{el:"Οι πελάτες σας είναι πλέον κανονικές καρτέλες: ανοίγουν, διορθώνονται, μπαίνουν σε δελτία και προσφορές. Ό,τι δεν υπήρχε στο αρχείο (κατηγορία Α/Β/Γ, τιμοκατάλογος, τζίρος) παίρνει ουδέτερη τιμή μέχρι να το συμπληρώσετε.",
+        en:"Your customers are now ordinary cards: they open, can be edited, and go into sheets and quotations. Anything missing from the file (A/B/C grade, price list, turnover) takes a neutral value until you fill it in."},
+  steps:{el:["Πατήστε «Άνοιγμα: Πελάτες». Η λίστα δείχνει τους πελάτες σας.",
+             "Ο κωδικός τους ξεκινά με «CL-» και συνεχίζει με τον κωδικό του προγράμματός σας (π.χ. CL-ΔΟΚ-001). Προμηθευτές: «SL-». Προϊόντα: «PX-».",
+             "Στη στήλη «Προέλευση» γράφει «Εισαγωγή». Φίλτρο «Προέλευση: Εισαγωγή» τους δείχνει μόνους τους.",
+             "Ανοίξτε έναν: η καρτέλα έχει όσα στοιχεία είχε το αρχείο, και στο «Ιστορικό» μια εγγραφή «Εισαγωγή — Από [όνομα αρχείου]».",
+             "Διορθώστε ό,τι χρειάζεται με «✎ Επεξεργασία» — π.χ. το ΑΦΜ με την κόκκινη ένδειξη — και «✓ Αποθήκευση». Η αλλαγή σας ΔΕΝ χάνεται αν αργότερα ξαναφέρετε το ίδιο αρχείο· ενημερώνονται μόνο τα πεδία που έχει το αρχείο.",
+             "Φέρνοντας ξανά το ίδιο αρχείο με «Προσθήκη», ο δείκτης γράφει «0 νέες · 67 ενημερώσεις» — δεν διπλασιάζεται τίποτα.",
+             "Γυρίζοντας στην «Εισαγωγή δεδομένων», το αρχείο έχει κλείσει μόνο του — δεν γίνεται κατά λάθος δεύτερη εισαγωγή."],
+         en:["Click «Open: Customers». The list shows your customers.",
+             "Their code starts with «CL-» followed by your software's code (e.g. CL-ΔΟΚ-001). Suppliers: «SL-». Products: «PX-».",
+             "The «Source» column reads «Import». The «Source: Import» filter shows them on their own.",
+             "Open one: the card holds whatever the file had, and its «History» has an entry «Import — From [file name]».",
+             "Fix what is needed with «✎ Edit» — e.g. the VAT number with the red tag — then «✓ Save». Your change is NOT lost if you later bring the same file again; only the fields in the file are updated.",
+             "Bringing the same file again with «Add», the indicator reads «0 new · 67 updates» — nothing is duplicated.",
+             "Back on «Data import», the file has closed by itself — no accidental second import."]},
+  res:{el:"Η εφαρμογή δουλεύει με τους δικούς σας πελάτες.",
+       en:"The app works with your own customers."},
+  go:"goSec('crm','Πελάτες')"});
+
+G({ic:"⑧", t:{el:"Βήμα 8 — Είδη αποθήκης: ομάδες και SKU", en:"Step 8 — Stock items: groups and SKUs"},
+  pic:MP.items, picCap:{el:"Η «Ομάδα» του προγράμματός σας γίνεται προϊόν· κάθε είδος γίνεται SKU από κάτω.",
+                        en:"Your software's «Group» becomes a product; each item becomes a SKU underneath."},
+  see:{el:"Ίδια οθόνη με τους πελάτες, με το κουμπί «Είδη αποθήκης» επιλεγμένο. Στην αντιστοίχιση υπάρχουν πεδία όπως «Ομάδα (γίνεται προϊόν)», «Μονάδα μέτρησης», «Πάχος», «Τιμή πώλησης», «Απόθεμα».",
+       en:"The same screen as customers, with «Stock items» selected. The matching offers fields such as «Group (becomes a product)», «Unit», «Thickness», «Sale price», «Stock»."},
+  does:{el:"Στην εφαρμογή ένα προϊόν (π.χ. Titanium Grey) έχει πολλές παραλλαγές — πάχος, φινίρισμα, μορφή. Τα προγράμματα συνήθως κρατούν κάθε παραλλαγή ως ξεχωριστό είδος. Η εισαγωγή τα ξαναμαζεύει: ίδια ομάδα → ίδιο προϊόν.",
+        en:"In the app one product (e.g. Titanium Grey) has many variants — thickness, finish, form. Business software usually keeps each variant as a separate item. The import regroups them: same group → same product."},
+  steps:{el:["Πατήστε «Είδη αποθήκης» και φέρτε το αρχείο — ή «Δοκιμαστικό αρχείο»: 60 είδη σε 3 ομάδες, 6 ανενεργά.",
+             "Ελέγξτε ότι η στήλη με την ομάδα δείχνει στο «Ομάδα (γίνεται προϊόν)». Αν τη βάλετε «— να μη μπει —», κάθε είδος γίνεται δικό του προϊόν.",
+             "Μονάδες: «τ.μ.», «τμ», «m2» γίνονται m²· «μ.μ.», «τρεχ.» γίνονται μ.μ.· «τεμ.», «τμχ» γίνονται τεμ.",
+             "Τιμές με ελληνική υποδιαστολή («40,50») διαβάζονται σωστά.",
+             "Εισαγωγή. Δοκιμαστικό: μπαίνουν 54 SKU σε 3 νέα προϊόντα.",
+             "Διαχείριση → Προϊόντα: τα νέα προϊόντα έχουν κωδικό «PX-». Τα 12 δικά μας μένουν όπως είναι.",
+             "Τα νέα SKU εμφανίζονται αμέσως στη λίστα υλικών του δελτίου παραγγελίας.",
+             "Τεχνικά χαρακτηριστικά (πυκνότητα, αντοχές) ΔΕΝ έρχονται από το πρόγραμμα — συμπληρώνονται στο προϊόν → «Τεχνικά»."],
+         en:["Click «Stock items» and bring the file — or «Sample file»: 60 items in 3 groups, 6 inactive.",
+             "Check that the group column points to «Group (becomes a product)». Set it to «— do not import —» and each item becomes its own product.",
+             "Units: «τ.μ.», «τμ», «m2» become m²; «μ.μ.», «τρεχ.» become running metres; «τεμ.», «τμχ» become pieces.",
+             "Prices with a Greek decimal comma («40,50») are read correctly.",
+             "Import. Sample: 54 SKUs go into 3 new products.",
+             "Admin → Products: the new products carry a «PX-» code. Our 12 stay as they are.",
+             "The new SKUs appear at once in the material list of the order sheet.",
+             "Technical data (density, strengths) do NOT come from the software — fill them in on the product → «Technical»."]},
+  res:{el:"Τα είδη σας είναι διαθέσιμα σε δελτία και προσφορές, ομαδοποιημένα όπως τα σκέφτεστε.",
+       en:"Your items are available in sheets and quotations, grouped the way you think of them."},
+  go:"mniGo('products')"});
+
+G({ic:"⑨", t:{el:"Βήμα 9 — Ιστορικό και επαναφορά", en:"Step 9 — History and restore"},
+  pic:MP.hist, picCap:{el:"Κάθε εισαγωγή και κάθε επαναφορά καταγράφεται. Το κουμπί επαναφοράς εμφανίζεται μόνο όταν υπάρχει κάτι να επανέλθει.",
+                       en:"Every import and every restore is logged. The restore button appears only when there is something to restore."},
+  see:{el:"Στο κάτω μέρος της οθόνης: πίνακας «Ιστορικό εισαγωγών» (πότε, τι, αρχείο, νέες, ενημερώσεις, τρόπος) και κουμπιά «Επαναφορά: Πελάτες», «Επαναφορά: Προμηθευτές», «Επαναφορά: Είδη αποθήκης».",
+       en:"At the bottom of the screen: the «Import history» table (when, what, file, new, updates, mode) and the buttons «Restore: Customers», «Restore: Suppliers», «Restore: Stock items»."},
+  does:{el:"Γυρίζει την εφαρμογή στην κατάσταση πριν από τις εισαγωγές, για ένα είδος τη φορά. Βγάζει ό,τι μπήκε από αρχείο και επαναφέρει τα δοκιμαστικά μαζί με όλες τις συνδέσεις τους — παραγγελίες, δελτία, τιμοκαταλόγους, εντολές παραγωγής.",
+        en:"It returns the app to its state before the imports, one kind at a time. It removes whatever came from a file and restores the sample data with all its links — orders, sheets, price lists, production orders."},
+  steps:{el:["Κατεβείτε στο «Ιστορικό εισαγωγών». Κάθε γραμμή είναι μία εισαγωγή· η πορτοκαλί ένδειξη «αντικατάσταση» δείχνει ποιες έβγαλαν δοκιμαστικά.",
+             "Πατήστε «Επαναφορά: Πελάτες».",
+             "Η ερώτηση λέει πόσοι εισαγμένοι θα αφαιρεθούν. Πατήστε «OK».",
+             "Επιστρέφουν οι 8 δοκιμαστικοί πελάτες, οι 5 παραγγελίες, οι 5 προσφορές και τα 8 δελτία. Οι εντολές παραγωγής ξαναβρίσκουν την παραγγελία τους.",
+             "Το banner ξαναγράφει «Δοκιμαστικά δεδομένα».",
+             "Στο ιστορικό μπαίνει γραμμή «Επαναφορά — αφαιρέθηκαν Ν».",
+             "Προσοχή: το εισαγμένο αρχείο ΔΕΝ ξαναέρχεται με την επαναφορά. Για να τους ξαναφέρετε, κάνετε νέα εισαγωγή."],
+         en:["Scroll to «Import history». Each row is one import; the orange «replace» tag shows which ones removed sample data.",
+             "Click «Restore: Customers».",
+             "The question states how many imported records will be removed. Click «OK».",
+             "The 8 sample customers, 5 orders, 5 quotations and 8 sheets come back. Production orders find their order again.",
+             "The banner reads «Sample data» again.",
+             "A «Restore — removed N» row is added to the history.",
+             "Careful: the imported file does NOT come back with a restore. To bring them in again, run a new import."]},
+  res:{el:"Η εφαρμογή είναι όπως πριν. Μπορείτε να δοκιμάσετε όσες φορές θέλετε χωρίς φόβο.",
+       en:"The app is as it was. You can try as many times as you like without fear."},
+  go:"mniGo('customers')"});
+
+G({ic:"⑩", t:{el:"Βήμα 10 — Πού μένουν τα δεδομένα", en:"Step 10 — Where the data lives"},
+  pic:MP.store, picCap:{el:"Τα δεδομένα μένουν στον browser αυτού του υπολογιστή. Δεν ανεβαίνουν σε καμία ιστοσελίδα.",
+                        en:"The data stays in this computer's browser. It is not uploaded to any website."},
+  see:{el:"Πάνω στην οθόνη, ο δείκτης «Τοπικός χώρος» δείχνει πόσα MB πιάνουν τα δεδομένα από τα περίπου 5 MB που δίνει ο browser.",
+       en:"At the top of the screen, the «Local storage» indicator shows how many MB the data takes out of the roughly 5 MB the browser allows."},
+  does:{el:"Η εφαρμογή είναι δημόσια στο internet, αλλά οι πελάτες σας ΔΕΝ είναι. Μένουν αποθηκευμένοι μόνο στον browser όπου κάνατε την εισαγωγή. Αυτό προστατεύει τα στοιχεία τρίτων (GDPR) — έχει όμως τέσσερις συνέπειες που πρέπει να ξέρετε.",
+        en:"The app is public on the internet, but your customers are NOT. They are stored only in the browser where you ran the import. This protects third-party data (GDPR) — but it has four consequences you need to know."},
+  steps:{el:["Άλλος υπολογιστής, κινητό ή άλλος browser (Chrome / Edge) ΔΕΝ βλέπει τους πελάτες σας. Εκεί χρειάζεται νέα εισαγωγή.",
+             "Το κουμπί ↺ στην πάνω μπάρα («Επαναφορά όλων των δοκιμαστικών») σβήνει ΚΑΙ τα εισαγμένα. Για ένα είδος μόνο, χρησιμοποιήστε την «Επαναφορά» του Βήματος 9.",
+             "Αν καθαρίσετε το ιστορικό / τα δεδομένα του browser, χάνονται. Κρατήστε το αρχείο της εξαγωγής — είναι το αντίγραφο ασφαλείας σας.",
+             "Αν ο δείκτης «Τοπικός χώρος» πλησιάσει το 80% (γίνεται κόκκινος), κρατήστε «Μόνο ενεργοί» ή αφαιρέστε φωτογραφίες προϊόντων. Αν κάτι δεν χωράει, η εισαγωγή ακυρώνεται χωρίς να χαλάσει τίποτα.",
+             "Στο πραγματικό σύστημα (Φάση 4) τα δεδομένα θα ζουν σε ασφαλή βάση δεδομένων με πρόσβαση ανά χρήστη — ο περιορισμός αυτός αφορά μόνο το mockup."],
+         en:["Another computer, phone or browser (Chrome / Edge) does NOT see your customers. It needs its own import.",
+             "The ↺ button in the top bar («Restore all sample data») ALSO erases imported data. For a single kind, use the «Restore» of Step 9.",
+             "If you clear the browser's history / data, they are lost. Keep the export file — it is your backup.",
+             "If the «Local storage» indicator nears 80% (it turns red), keep «Active only» or remove product photos. If something does not fit, the import is cancelled without breaking anything.",
+             "In the real system (Phase 4) the data will live in a secure database with per-user access — this limit applies to the mockup only."]},
+  res:{el:"Ξέρετε ότι τα στοιχεία των πελατών σας δεν είναι δημόσια, και πώς να μην τα χάσετε.",
+       en:"You know your customers' details are not public, and how not to lose them."}});
+
+G({ic:"⑪", t:{el:"Βήμα 11 — Όταν κάτι δεν πάει καλά", en:"Step 11 — When something goes wrong"},
+  pic:MP.bad, picCap:{el:"Κόκκινο πλαίσιο: το αρχείο δεν μπήκε και τίποτα δεν άλλαξε. Το κείμενο λέει τι να κάνετε.",
+                      en:"Red box: the file was not imported and nothing changed. The text says what to do."},
+  see:{el:"Κόκκινο πλαίσιο «Το αρχείο δεν μπορεί να μπει» κάτω από την επιλογή αρχείου, με την αιτία.",
+       en:"A red «The file cannot be imported» box below the file picker, with the reason."},
+  does:{el:"Κάθε πρόβλημα σταματάει ΠΡΙΝ αλλάξει οτιδήποτε. Τα δοκιμαστικά δεν σβήνονται ποτέ εξαιτίας λάθος αρχείου.",
+        en:"Every problem stops BEFORE anything changes. The sample data is never erased because of a wrong file."},
+  steps:{el:["«Το αρχείο έχει μόνο τον εσωτερικό κωδικό κάθε εγγραφής»: η εξαγωγή έγινε χωρίς στήλες (ό,τι έγινε στις 09/09). Γυρίστε στο Βήμα 2. Δοκιμάστε το με το κουμπί «Αρχείο χωρίς στήλες».",
+             "«Παλιά μορφή Excel (.xls)»: ανοίξτε το στο Excel και αποθηκεύστε ως .xlsx ή CSV.",
+             "«Δεν βρέθηκε γραμμή επικεφαλίδων»: το αρχείο δεν έχει ονόματα στηλών. Ξαναβγάλτε το με επικεφαλίδες.",
+             "«Αντιστοιχίστε τη στήλη που έχει την Επωνυμία»: στο Βήμα 4 διαλέξτε ποια στήλη είναι η επωνυμία.",
+             "«Δεν χώρεσε — τίποτα δεν άλλαξε»: τα δεδομένα ξεπερνούν τον χώρο του browser. Ανάψτε «Μόνο ενεργοί» ή αφαιρέστε φωτογραφίες.",
+             "«Ο browser δεν ανοίγει αρχεία Excel»: πολύ παλιός browser. Ενημερώστε Chrome / Edge / Firefox ή αποθηκεύστε το αρχείο ως CSV.",
+             "Ελληνικά που φαίνονται σαν «ÅðùíõìÝá»: σπάνιο — στείλτε μας το αρχείο. (Τα CSV σε κωδικοποίηση Windows-1253 διαβάζονται ήδη αυτόματα.)",
+             "Οποιοδήποτε άλλο μήνυμα: κάντε μια φωτογραφία της οθόνης και στείλτε την μαζί με το αρχείο."],
+         en:["«The file holds only the internal code of each record»: the export ran without columns (what happened on 09/09). Go back to Step 2. Try it with the «File without columns» button.",
+             "«Old Excel format (.xls)»: open it in Excel and save as .xlsx or CSV.",
+             "«No heading row found»: the file has no column names. Export it again with headings.",
+             "«Match the column that holds the Name»: in Step 4 choose which column is the name.",
+             "«Did not fit — nothing changed»: the data exceeds the browser's storage. Switch on «Active only» or remove photos.",
+             "«This browser cannot open Excel files»: a very old browser. Update Chrome / Edge / Firefox or save the file as CSV.",
+             "Greek showing as «ÅðùíõìÝá»: rare — send us the file. (CSV files in Windows-1253 encoding are already read automatically.)",
+             "Any other message: take a screenshot and send it with the file."]},
+  res:{el:"Ξέρετε τι σημαίνει κάθε μήνυμα και τι να κάνετε — χωρίς ρίσκο για τα δεδομένα.",
+       en:"You know what each message means and what to do — with no risk to the data."},
+  go:"mniGo('customers')"});
+
+/* σενάριο δοκιμής — με τα ενσωματωμένα δοκιμαστικά αρχεία */
+if(GUIDE.test && GUIDE.test.cards){
+  GUIDE.test.cards.push({ic:"⤓", t:{el:"Δοκιμή — Εισαγωγή πελατολογίου χωρίς δικό σας αρχείο", en:"Test — Customer import without a file of your own"},
+    see:{el:"Δέκα λεπτά. Χρησιμοποιεί το «Δοκιμαστικό αρχείο» της εφαρμογής, με γνωστά νούμερα, ώστε να συγκρίνετε με όσα γράφονται εδώ.",
+         en:"Ten minutes. It uses the app's own «Sample file», with known numbers, so you can compare against what is written here."},
+    does:{el:"Περνάει από όλη τη διαδρομή: αρχείο → αντιστοίχιση → έλεγχοι → αντικατάσταση → καρτέλα → επανάληψη → επαναφορά → λάθος αρχείο.",
+          en:"It walks the whole path: file → matching → checks → replace → card → repeat → restore → wrong file."},
+    steps:{el:["Διαχείριση → Εισαγωγή δεδομένων → «Πελάτες» → «Δοκιμαστικό αρχείο».",
+               "Ελέγξτε: «δοκιμαστικό-πελάτες.csv · CSV / κείμενο · 82 γραμμές».",
+               "Στο «Ποια στήλη είναι τι» όλες οι 12 στήλες έχουν πεδίο — καμία αχνή.",
+               "Στο «Τι θα μπει»: Γραμμές αρχείου 82 · Θα μπουν 67 · Παραλείπονται 15 (3 χωρίς όνομα · 2 διπλές · 10 ανενεργές) · Προς έλεγχο 5 (2 ΑΦΜ · 3 email).",
+               "Στον πίνακα προεπισκόπησης, ο ΔΟΚ-005 έχει κόκκινο «έλεγχος» στο ΑΦΜ.",
+               "Σβήστε το «Μόνο ενεργοί»: το «Θα μπουν» γίνεται 77. Ανάψτε το ξανά: 67.",
+               "Διαλέξτε «Αντικατάσταση των δοκιμαστικών». Το κείμενο γράφει «Φεύγουν οι 8 ψεύτικοι πελάτες».",
+               "«Εισαγωγή 67 εγγραφών» → «OK». Πράσινο «Έγινε. 67 νέες…».",
+               "Το banner πάνω γράφει «πραγματικά δεδομένα από εισαγωγή».",
+               "«Άνοιγμα: Πελάτες»: ο δείκτης γράφει 67 πελάτες. Πωλήσεις → Παραγγελίες: καμία (οι ψεύτικες έφυγαν).",
+               "Ανοίξτε τον «ΔΟΚΙΜΑΣΤΙΚΟΣ ΠΕΛΑΤΗΣ 005» → «✎ Επεξεργασία» → «Κατηγορία»: A → «✓ Αποθήκευση».",
+               "Ξανά «Εισαγωγή δεδομένων» → «Δοκιμαστικό αρχείο» → «Προσθήκη και ενημέρωση»: γράφει «0 νέες · 67 ενημερώσεις». Εισαγωγή. Ο πελάτης 005 κρατάει την κατηγορία A.",
+               "Κάτω, «Επαναφορά: Πελάτες» → «OK». Πωλήσεις → Πελάτες: ξανά 8. Παραγγελίες: ξανά 5.",
+               "Τέλος, «Αρχείο χωρίς στήλες»: κόκκινο πλαίσιο «μόνο τον εσωτερικό κωδικό… 40 εγγραφές». Οι πελάτες παραμένουν 8."],
+           en:["Admin → Data import → «Customers» → «Sample file».",
+               "Check: «δοκιμαστικό-πελάτες.csv · CSV / text · 82 rows».",
+               "Under «Which column is what» all 12 columns have a field — none faded.",
+               "Under «What will be imported»: File rows 82 · Will import 67 · Skipped 15 (3 no name · 2 duplicates · 10 inactive) · To check 5 (2 VAT · 3 email).",
+               "In the preview table, ΔΟΚ-005 shows a red «check» on the VAT number.",
+               "Switch off «Active only»: «Will import» becomes 77. Switch it back on: 67.",
+               "Choose «Replace the sample data». The text reads «The 8 fake customers go».",
+               "«Import 67 records» → «OK». Green «Done. 67 new…».",
+               "The banner at the top reads «real data from an import».",
+               "«Open: Customers»: the indicator shows 67 customers. Sales → Orders: none (the fake ones are gone).",
+               "Open «ΔΟΚΙΜΑΣΤΙΚΟΣ ΠΕΛΑΤΗΣ 005» → «✎ Edit» → «Category»: A → «✓ Save».",
+               "Back to «Data import» → «Sample file» → «Add and update»: it reads «0 new · 67 updates». Import. Customer 005 keeps grade A.",
+               "Below, «Restore: Customers» → «OK». Sales → Customers: 8 again. Orders: 5 again.",
+               "Finally, «File without columns»: red box «only the internal code… 40 records». Customers stay at 8."]},
+    res:{el:"Αν όλα τα νούμερα ταιριάζουν, η εισαγωγή είναι έτοιμη για το πραγματικό σας αρχείο.",
+         en:"If every number matches, the import is ready for your real file."},
+    go:"mniGo('customers')"});
+}
+
+/* γλωσσάριο */
+if(GUIDE.glossary) GUIDE.glossary.push(
+  {w:{el:"Εισαγωγή δεδομένων", en:"Data import"},
+   d:{el:"Μεταφορά πελατών, προμηθευτών ή ειδών από το εμπορικό σας πρόγραμμα με ένα αρχείο (Excel, CSV, JSON, XML). Τα δεδομένα μένουν μόνο στον browser όπου έγινε η εισαγωγή.",
+      en:"Bringing customers, suppliers or items from your business software with one file (Excel, CSV, JSON, XML). The data stays only in the browser where the import was done."}},
+  {w:{el:"Αντιστοίχιση στηλών", en:"Column matching"},
+   d:{el:"Ποια στήλη του αρχείου μπαίνει σε ποιο πεδίο της εφαρμογής. Γίνεται αυτόματα από τα ονόματα των στηλών· ό,τι διορθώσετε το θυμάται.",
+      en:"Which file column goes into which app field. Done automatically from the column names; whatever you correct is remembered."}},
+  {w:{el:"Αντικατάσταση δοκιμαστικών", en:"Replacing sample data"},
+   d:{el:"Τρόπος εισαγωγής που βγάζει τους ψεύτικους πελάτες ή προμηθευτές μαζί με τις ψεύτικες κινήσεις τους, ώστε να μείνουν μόνο οι πραγματικοί. Αναιρείται με «Επαναφορά».",
+      en:"An import mode that removes the fake customers or suppliers with their fake transactions, so only real ones remain. Undone with «Restore»."}},
+  {w:{el:"Ψηφίο ελέγχου ΑΦΜ", en:"VAT check digit"},
+   d:{el:"Το τελευταίο ψηφίο του ΑΦΜ προκύπτει από τα οκτώ πρώτα. Αν δεν ταιριάζει, το ΑΦΜ έχει γραφτεί λάθος — η εφαρμογή το σημαδεύει «έλεγχος».",
+      en:"The last digit of a Greek VAT number is derived from the first eight. If it does not match, the number was mistyped — the app flags it «check»."}}
+);
+
+/* η κάρτα της Διαχείρισης παραπέμπει στον πλήρη οδηγό */
+if(GUIDE.admin && GUIDE.admin.cards){
   GUIDE.admin.cards.push({ic:"⤓",
     t:{el:"Εισαγωγή πελατών, προμηθευτών και ειδών", en:"Importing customers, suppliers and items"},
     see:{el:"Διαχείριση → Εισαγωγή δεδομένων. Τρία κουμπιά (Πελάτες, Προμηθευτές, Είδη αποθήκης) και επιλογή αρχείου. Το ίδιο κουμπί υπάρχει και δίπλα στο «+ Νέος» κάθε λίστας.",
-         en:"Admin → Data import. Three buttons (Customers, Suppliers, Stock items) and a file picker. The same button also sits next to “+ New” on each list."},
+         en:"Admin → Data import. Three buttons (Customers, Suppliers, Stock items) and a file picker. The same button also sits next to «+ New» on each list."},
     does:{el:"Διαβάζει το αρχείο από το πρόγραμμά σας, βρίσκει μόνη της ποια στήλη είναι η επωνυμία, το ΑΦΜ, η πόλη, και σας δείχνει τι θα μπει πριν μπει. Τα δεδομένα μένουν μόνο σε αυτόν τον υπολογιστή.",
-          en:"Reads the export from your current software, works out which column is the name, VAT number and city, and shows you what will be imported before it happens. The data stays on this computer only."},
-    steps:{el:["Πατήστε τι φέρνετε — π.χ. «Πελάτες».",
-               "«Επιλογή αρχείου…» και διαλέξτε την εξαγωγή (Excel, CSV, JSON ή XML).",
-               "Στο «Ποια στήλη είναι τι» ελέγξτε τις αντιστοιχίσεις· διορθώστε όποια είναι λάθος. Τη διόρθωση τη θυμάται την επόμενη φορά.",
-               "Στο «Τι θα μπει» δείτε πόσες εγγραφές μπαίνουν, πόσες είναι διπλές και ποια ΑΦΜ θέλουν έλεγχο.",
-               "Διαλέξτε «Προσθήκη» ή «Αντικατάσταση των δοκιμαστικών» και πατήστε «Εισαγωγή».",
-               "Αν κάτι δεν σας αρέσει, «Επαναφορά» στο ιστορικό — επιστρέφουν τα δοκιμαστικά."],
-           en:["Click what you are bringing in — e.g. “Customers”.",
-               "“Choose file…” and pick the export (Excel, CSV, JSON or XML).",
-               "Under “Which column is what”, check the matches and fix any wrong one. The fix is remembered next time.",
-               "Under “What will be imported”, see how many records go in, how many are duplicates and which VAT numbers need checking.",
-               "Choose “Add” or “Replace the sample data” and click “Import”.",
-               "If you don't like the result, use “Restore” in the history — the sample data comes back."]},
+          en:"It reads the export from your current software, works out which column is the name, VAT number and city, and shows you what will be imported before it happens. The data stays on this computer only."},
+    steps:{el:["Ο πλήρης οδηγός, σε 11 βήματα με εικόνες, είναι στην καρτέλα «Εισαγωγή δεδομένων» αυτού του οδηγού.",
+               "Για γρήγορη δοκιμή: «Πελάτες» → «Δοκιμαστικό αρχείο» → «Εισαγωγή».",
+               "Για επαναφορά: «Επαναφορά: Πελάτες» στο κάτω μέρος της οθόνης."],
+           en:["The full guide, in 11 illustrated steps, is on this guide's «Data import» tab.",
+               "For a quick try: «Customers» → «Sample file» → «Import».",
+               "To undo: «Restore: Customers» at the bottom of the screen."]},
     res:{el:"Η καρτέλα πελατών δείχνει τους δικούς σας πελάτες. Αν το αρχείο δεν έχει στήλες (μόνο κωδικούς), η εφαρμογή το λέει καθαρά αντί να σβήσει τα δοκιμαστικά.",
-         en:"The customer list shows your own customers. If the file has no columns (codes only), the app says so plainly instead of wiping the sample data."}});
+         en:"The customer list shows your own customers. If the file has no columns (codes only), the app says so plainly instead of wiping the sample data."},
+    go:"openGuide('imp')"});
 }
+
+/* καρτέλα στον οδηγό, μετά το «Δελτίο παραγγελίας» */
+var _mniRenderGuide = renderGuide;
+renderGuide = function(){
+  _mniRenderGuide();
+  var body = document.getElementById("gdBody"); if(!body) return;
+  var nav = body.querySelector(".gd-nav"); if(!nav) return;
+  var b = document.createElement("button");
+  if(GTAB === "imp") b.className = "on";
+  b.setAttribute("onclick", "setGTab('imp')");
+  b.textContent = "⤓ " + (GLANG === "el" ? "Εισαγωγή δεδομένων" : "Data import");
+  var after = nav.querySelector("button[onclick*=\"'sheet'\"]");
+  if(after && after.nextSibling) nav.insertBefore(b, after.nextSibling); else nav.appendChild(b);
+  if(GTAB === "imp"){
+    nav.insertAdjacentHTML("afterend",
+      '<div class="card" style="margin-bottom:16px;padding:16px 18px;font-size:14.5px;line-height:1.65">'
+      + (GLANG === "el"
+        ? "<strong>Σε μία πρόταση:</strong> φέρνετε τους πελάτες, τους προμηθευτές και τα είδη σας από το πρόγραμμα που δουλεύετε σήμερα, βλέπετε τι θα μπει <strong>πριν</strong> μπει, και αν δεν σας αρέσει, το γυρίζετε πίσω με ένα κουμπί. Δεν έχετε ακόμα αρχείο; Κάθε βήμα δοκιμάζεται με το «Δοκιμαστικό αρχείο»."
+        : "<strong>In one sentence:</strong> you bring in your customers, suppliers and items from the software you use today, see what will be imported <strong>before</strong> it happens, and undo it with one button if you do not like it. No file yet? Every step can be tried with the «Sample file».")
+      + '</div>');
+  }
+};
+
+/* κουμπιά δοκιμαστικού αρχείου + οδηγού μέσα στην οθόνη */
+var _mniViewImport = viewImport;
+viewImport = function(){
+  var h = _mniViewImport();
+  var anchor = '<p class="sub" style="margin-top:8px">Μορφές που διαβάζονται:';
+  if(MNI.type && h.indexOf(anchor) >= 0){
+    var extra = '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px">'
+      + '<span style="font-size:13.5px;color:var(--muted)">Δεν έχετε ακόμα αρχείο;</span>'
+      + '<button class="b ghost sm" onclick="mniDemo(\'' + MNI.type + '\')">Δοκιμαστικό αρχείο</button>'
+      + '<button class="b ghost sm" onclick="mniDemo(\'bad\')">Αρχείο χωρίς στήλες</button>'
+      + '<button class="b ghost sm" onclick="openGuide(\'imp\')">📖 Οδηγός βήμα-βήμα</button></div>';
+    h = h.replace(anchor, extra + anchor);
+  }
+  return h;
+};
+
+/* Διόρθωση: σε επεξεργασία, ένα <select> χωρίς την τρέχουσα τιμή στις επιλογές
+   έδειχνε την ΠΡΩΤΗ επιλογή — και η «Αποθήκευση» την έγραφε σιωπηλά.
+   (π.χ. εισαγμένος πελάτης με κατηγορία «ΧΟΝΔΡΙΚΗ» γινόταν «Μαρμαράς / συνεργείο»).
+   Η τρέχουσα τιμή μπαίνει πρώτη στη λίστα, ώστε να μένει όπως είναι. */
+var _mniEf = ef;
+ef = function(rec, path, label, type, opts, disp){
+  if(type === "sel" && EDITING && Array.isArray(opts)){
+    var v = getPath(rec, path);
+    if(v != null && v !== "" && opts.map(String).indexOf(String(v)) < 0) opts = [v].concat(opts);
+  }
+  return _mniEf(rec, path, label, type, opts, disp);
+};
 /*MNI:END*/
